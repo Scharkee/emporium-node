@@ -1,0 +1,12 @@
+  connection.connect();                       //GET ALL USERS FROM SQL WORKING
+    var sqq='SELECT * FROM users'
+    connection.query(sqq, function (err, rows, fields) {
+        console.log(rows);
+        if (err) throw err;
+
+    });
+
+
+
+
+//supervisor to restart when code changed: supervisor index.js
