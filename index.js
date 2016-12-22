@@ -18,11 +18,15 @@ var connectionpool = mysql.createPool({
     database: 'managend'
 });
 
+io.set('heartbeat timeout', 4000); //atitaikyt situs 
+io.set('heartbeat interval', 2000);
+
 
 io.on("connection", function (socket) {
 //sutvarkyt this shit
 var currentUser;	
 var passStatus;
+var keepalive;
 
 console.log("Connection Up");
 socket.emit("connectedToNode");
@@ -137,11 +141,18 @@ socket.emit("connectedToNode");
 
                     console.log(rows);
                 }
+				
+			
 
                 setInterval(function () {
                     console.log("sending autosave ping to client ID: " + socket.id);
                     io.to(socket.id).emit('AUTOSAVER_PING');
 					
+					if(!socket.connected){
+						//stop autoupdates, save info. 
+						console.log("autosave detected disconnect, saving data and shutting off.");
+						
+					}
                     //set some kind of wait timer, and if no reply from client, then discard connection and retrieve stats again when they login again.
                     
                 }, 20000);
@@ -158,6 +169,7 @@ socket.emit("connectedToNode");
     socket.on("AUTOSAVE_VERIFY", function (data) {
 
         console.log("got autosave data from client, checking if matches stored data.");
+		//tik is sitos funkcijos ggali issisaugoti i database. 
 
 
 
