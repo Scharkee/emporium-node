@@ -38,57 +38,40 @@ socket.emit("connectedToNode");
 	
     socket.on("CHECK_LOGIN", function (data) {
 
-   
-
-		username=data.Uname;
+		socket[user.username]=data.Uname;//this shit here is kinda obnoxious, clean up blyet sometime.
      
 		var userpass = data.Upass;
 
-        console.log("user.username is"+ socket[user.username]);
+        console.log("user.username is "+ socket[user.username]);
 
-		username = "'" + username + "'";
+		username = "'" + socket[user.username] + "'";
 		var sqlq = 'SELECT password FROM users WHERE username = ' + username;
 		
-	
-
 
 		connectionpool.getConnection(function (err, connection) {
 		    // Use the connection
 		    connection.query(sqlq, function (err, rows, fields) {
-		   
+		  
 		        if (err) throw err;
-
-
 
 		        if(!rows.length){
 		            console.log("user does not exist! ");
 		        socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
-
-
-		        } else if (userpass != rows[0].password) {
+		        } else if (userpass != rows[0].password) {//try again cyker
 		      
 		            console.log("passwords do not match!");
 		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
-		        }else if (userpass == rows[0].password) {
+		        }else if (userpass == rows[0].password) {//u in bro
 		            console.log("passwords match!");
-		            passStatus="pooopeper";
+		      
 		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
 
 		        }
 		        //TODO: dupe account function that callbacks  PASS_CHECK_CALLBACK as 3.
-
-
-		  
-		        // And done with the connection.
+                //TODO: this shit with passStatus, should clean it up to be just 0, 1 or 2 or 3.
 		        connection.release();
-
-		        // Don't use the connection here, it has been returned to the pool.
 		    });
 		});
-		
-		
-	
-		
 		
     });
 
@@ -117,7 +100,6 @@ socket.emit("connectedToNode");
 
     });
 
-
     //GAME STAT RETRIEVAL CALLS
 
     socket.on("GET_STATS", function (data) {
@@ -131,19 +113,17 @@ socket.emit("connectedToNode");
 
                 if (err) throw err;
 
-                if (!rows.length) {
+                if (!rows.length) {//if DB finds no matches for username, create stats for that username.
                     var unix = Math.round(+new Date() / 1000);
                     console.log("Creating default user stats for: "+username);
                     socket.emit("RETRIEVE_STATS", { dollars: 100, plotsize: 3, lastonline: unix });
 
-                    
 
+        
                     InsertDefaultStats(username, 100, unix, 3);
                     
 
-
-
-                } else {
+                } else {//if DB finds matches for username, fuckeen get em.
 
                     socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: rows[0].lastonline });
                     console.log(rows[0].lastonline);
@@ -152,13 +132,8 @@ socket.emit("connectedToNode");
                     UserPlotSize=rows[0].plotsize;
                     UserLastOnline=rows[0].lastonline;
 
-
                     console.log(rows);
                 }
-				
-			
-
-                // And done with the connection.
                 connection.release();
 
             });
@@ -167,9 +142,9 @@ socket.emit("connectedToNode");
 
     });
 
+//make function that manually pings for response, if response arrives, push lastloggedin to server \/
 
-
-    socket.on("AUTOSAVE_PUSH_LASTLOGGED", function(data){
+    socket.on("AUTOSAVE_PUSH_LASTLOGGED", function(data){//upon verifying that client is still responding, this pushes the last online UNIX time to DB every ? seconds.
 
         var username = data.Uname;
         var unix = Math.round(+new Date() / 1000);
@@ -184,98 +159,77 @@ socket.emit("connectedToNode");
 
         });
 
-        socket.emit("VERIRICATION", true);
+        socket.emit("VERIFICATION", true); //TODO: if client receives verification false (or none at all,), show discrepency warning and shutt of game?
     });
-
-
-
 
          console.log("got lastlogged in check respornse from client, pushing to server ");
-
-
     });
 
-       socket.on("VERIFY_BUY_UPGRADE", function(data){
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+       socket.on("VERIFY_BUY_UPGRADE", function(data){//data includes what is being bought, and i get price from table from DB. ALSO load all prices from table from DB @ start of game.
 
          console.log("got autosave data from client, pushing to ");
 
     });
 
-        socket.on("VERIFY_COLLECT_TILE", function(data){
+        socket.on("VERIFY_COLLECT_TILE", function(data){//data contains which tile is being collected, and need checks for everything else(fertilizer/booster or some shit idk(should be stored in TILE DB, and verified when fertilised))
 
          console.log("got autosave data from client, pushing to ");
 
     });
 
-        socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){
+        socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
          console.log("got autosave data from client, pushing to ");
 
     });
 
 
+        //TODO: socket.on that does misc stuff(fertilise shit, t.t idk)
+        //TODO: each game command that comes here must emit VERIFICATION,true back to client + add checks for it in the client
+        //TODO: version control? if somebody manages to DL the game and has older version then this could get fucked.
+        //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game.
 
-   
-	
 
 
+ 
     //on client disconnected
 	   socket.on("disconnect", function (data) {
 
-        //WIERD SHIT WITH SAVES, GOTTA WORK THIS OUT. 
-
-        console.log("client dc'd, saving progress to database");
-
-        var unix = Math.round(+new Date() / 1000);
-        console.log("pushing loggedinlast as "+unix);
-
-
+        console.log("user nr. "+ allClients.indexOf(socket)+" dc'd");
 
       var i = allClients.indexOf(socket);
       allClients.splice(i, 1);
-
-
-
-
-
-
-		//tik is sitos funkcijos ggali issisaugoti i database. 
-
+		//TODO: maybe develop client tracking OR IP tracking. RIght now this is just list of clients.
     });
 
 
 
 
-});
-
-
+});//iserts default stats into DB when user first starts the game,
 function InsertDefaultStats(username,dollars,lastonline,plotsize) {
 
     var post = { username: username, dollars:dollars,lastonline:lastonline,plotsize:plotsize };
 
     console.log("inserting default stats into DB: "+UserDollars+UserPlotSize+UserLastOnline);
-
-
     connectionpool.getConnection(function (err, connection) {
         // Use the connection
         connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
             if (err) throw err;
-
-            // And done with the connection.
             connection.release();
-
         });
     });
-
-
-
 
 
 }
 
 
 server.listen(2333,function(){
-	
-    console.log("-------SERVER STARTED-------");
-    
+    console.log("-----------SERVER STARTED------------");
 });
