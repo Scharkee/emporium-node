@@ -15,11 +15,12 @@ var connectionpool = mysql.createPool({
     host: 'localhost',
     user: 'emporium-node',
     password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium'
+    database: 'managend'
 });
 
-var allClients = [];
-var user=[];
+io.set('heartbeat timeout', 4000); //atitaikyt situs or mb not
+io.set('heartbeat interval', 2000);
+
 
 io.on("connection", function (socket) {
 //sutvarkyt this shit
@@ -27,12 +28,7 @@ var currentUser;
 var passStatus;
 var keepalive;
 
-var UserDollars;
-var UserPlotSize;
-var UserLastOnline;
-
-allClients.push(socket);
-console.log("Connection Up, client ID: "+ allClients.indexOf(socket));
+console.log("Connection Up");
 socket.emit("connectedToNode");
 
 	
@@ -40,11 +36,8 @@ socket.emit("connectedToNode");
 
    
 
-		username=data.Uname;
-     
+		var username=data.Uname;
 		var userpass = data.Upass;
-
-        console.log("user.username is"+ socket[user.username]);
 
 		username = "'" + username + "'";
 		var sqlq = 'SELECT password FROM users WHERE username = ' + username;
@@ -148,15 +141,23 @@ socket.emit("connectedToNode");
                     socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: rows[0].lastonline });
                     console.log(rows[0].lastonline);
 
-                    UserDollars=rows[0].dollars;
-                    UserPlotSize=rows[0].plotsize;
-                    UserLastOnline=rows[0].lastonline;
-
-
                     console.log(rows);
                 }
 				
 			
+
+                setInterval(function () {
+                    console.log("sending autosave ping to client ID: " + socket.id);
+                    io.to(socket.id).emit('AUTOSAVER_PING');
+					
+					if(!socket.connected){
+						//stop autoupdates, save info. 
+						console.log("autosave detected disconnect, saving data and shutting off.");
+						
+					}
+                    //set some kind of wait timer, and if no reply from client, then discard connection and retrieve stats again when they login again.
+                    
+                }, 20000);
 
                 // And done with the connection.
                 connection.release();
@@ -167,79 +168,27 @@ socket.emit("connectedToNode");
 
     });
 
+    socket.on("AUTOSAVE_VERIFY", function (data) {
 
-
-    socket.on("AUTOSAVE_PUSH_LASTLOGGED", function(data){
-
-        var username = data.Uname;
-        var unix = Math.round(+new Date() / 1000);
-
-        connectionpool.getConnection(function (err, connection) {
-        
-        connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
-            if (err) throw err;
-
-            // And done with the connection.
-            connection.release();
-
-        });
-
-        socket.emit("VERIRICATION", true);
-    });
+        console.log("got autosave data from client, checking if matches stored data.");
+		//tik is sitos funkcijos ggali issisaugoti i database. 
 
 
 
 
-         console.log("got lastlogged in check respornse from client, pushing to server ");
 
 
     });
-
-       socket.on("VERIFY_BUY_UPGRADE", function(data){
-
-         console.log("got autosave data from client, pushing to ");
-
-    });
-
-        socket.on("VERIFY_COLLECT_TILE", function(data){
-
-         console.log("got autosave data from client, pushing to ");
-
-    });
-
-        socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){
-
-         console.log("got autosave data from client, pushing to ");
-
-    });
-
-
-
-   
 	
-
-
-    //on client disconnected
 	   socket.on("disconnect", function (data) {
 
-        //WIERD SHIT WITH SAVES, GOTTA WORK THIS OUT. 
-
-        console.log("client dc'd, saving progress to database");
-
-        var unix = Math.round(+new Date() / 1000);
-        console.log("pushing loggedinlast as "+unix);
-
-
-
-      var i = allClients.indexOf(socket);
-      allClients.splice(i, 1);
-
-
-
-
-
-
+        console.log("client dc'd");
 		//tik is sitos funkcijos ggali issisaugoti i database. 
+
+
+
+
+
 
     });
 
@@ -253,12 +202,11 @@ function InsertDefaultStats(username,dollars,lastonline,plotsize) {
 
     var post = { username: username, dollars:dollars,lastonline:lastonline,plotsize:plotsize };
 
-    console.log("inserting default stats into DB: "+UserDollars+UserPlotSize+UserLastOnline);
-
 
     connectionpool.getConnection(function (err, connection) {
         // Use the connection
         connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
+
             if (err) throw err;
 
             // And done with the connection.
