@@ -1,3 +1,3 @@
 # README #
 
-the backend for emporium.
+The Socket.IO based backend for emporium the management game. Very early stages of development.
