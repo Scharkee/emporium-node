@@ -18,33 +18,49 @@ var connectionpool = mysql.createPool({
     database: 'emporium'
 });
 
+//TODO: DONT CHANGE LOCALHOSTS INTO MY IP, cnage unity SOCKET node server IP.
+
+var connectionpool_tiles = mysql.createPool({//TODO: adapt this for connection for storin tile information for the second DB
+    connectionlimit : 10,
+    host: 'localhost',
+    user: 'emporium-node',
+    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
+    database: 'emporium'
+});
+
 var allClients = [];
+
 var user=[];
 
 io.on("connection", function (socket) {
-//sutvarkyt this shit
+//fix this shit, istrint shitty variables
 var currentUser;	    
-var passStatus;
-var keepalive;
 
 var UserDollars;
 var UserPlotSize;
 var UserLastOnline;
 
-allClients.push(socket);
-console.log("Connection Up, client ID: "+ allClients.indexOf(socket));
+
+allClients.push(socket);   //registruojamas 
+
+
+console.log("Connection Up, client ID: "+ allClients.indexOf(socket)+", Connection IP: "+ socket.request.connection.remoteAddress);
+
 socket.emit("connectedToNode");
 
 	
     socket.on("CHECK_LOGIN", function (data) {
 
-		socket[user.username]=data.Uname;//this shit here is kinda obnoxious, clean up blyet sometime.
+
+		var userpass = CleanInput(data.Upass,1);
+		socket[user.username]=CleanInput(data.Uname,1);//this shit here is kinda obnoxious, clean up blyet sometime.
      
-		var userpass = data.Upass;
+		var passStatus;
 
         console.log("user.username is "+ socket[user.username]);
 
 		username = "'" + socket[user.username] + "'";
+		
 		var sqlq = 'SELECT password FROM users WHERE username = ' + username;
 		
 
@@ -76,7 +92,6 @@ socket.emit("connectedToNode");
     });
 
  
-
     socket.on("CREATE_USER", function (data) {
 
         var username = data.Uname;
@@ -98,7 +113,7 @@ socket.emit("connectedToNode");
             });
 
 
-    });
+    });                                                                     
 
     //GAME STAT RETRIEVAL CALLS
 
@@ -118,11 +133,8 @@ socket.emit("connectedToNode");
                     console.log("Creating default user stats for: "+username);
                     socket.emit("RETRIEVE_STATS", { dollars: 100, plotsize: 3, lastonline: unix });
 
-
-        
                     InsertDefaultStats(username, 100, unix, 3);
-                    
-
+					
                 } else {//if DB finds matches for username, fuckeen get em.
 
                     socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: rows[0].lastonline });
@@ -132,7 +144,7 @@ socket.emit("connectedToNode");
                     UserPlotSize=rows[0].plotsize;
                     UserLastOnline=rows[0].lastonline;
 
-                    console.log(rows);
+                    console.log(rows);//delete this shit afterwards
                 }
                 connection.release();
 
@@ -166,9 +178,9 @@ socket.emit("connectedToNode");
     });
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////0_0///
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -189,12 +201,27 @@ socket.emit("connectedToNode");
          console.log("got autosave data from client, pushing to ");
 
     });
+	
+	    socket.on("VERIFY_ACTION",function(data){// misc action verifyinimo funkcija.
+			 //TODO: socket.on that does misc stuff(fertilise shit, t.t idk //THIS ONE
+			
+			
+			
+			
+	});
 
-
-        //TODO: socket.on that does misc stuff(fertilise shit, t.t idk)
-        //TODO: each game command that comes here must emit VERIFICATION,true back to client + add checks for it in the client
+        //GAME TODO's  
+       
+        //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game. Place temporary text in game for how much time was lost(DEBUG)
+		
+		
+		
+		//cheateriu checkai
+		
+		//TODO: each game command that comes here must emit VERIFICATION,true back to client + add checks for it in the client, if returned FALSE or didnt return at all,
+		//TODO: checks in each function for discrepancies, and if something doesnt match up, send VERIFICATION,false and stop connection(prolly not)? and DONT SAVE TO DB. 
+		//TODO: resync function for when VERIFICATION is false. Send to client and change all values MB so no restart is needed. Also include resyncing screen for the time it takes to 
         //TODO: version control? if somebody manages to DL the game and has older version then this could get fucked.
-        //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game.
 
 
 
@@ -227,6 +254,24 @@ function InsertDefaultStats(username,dollars,lastonline,plotsize) {
     });
 
 
+}
+
+function CleanInput(a,mode){
+switch(mode) {
+	case 1:
+		var b = a.replace(/[^a-zA-Z0-9]/gi,'');
+        console.log("Cleaned "+a+" into "+b);
+		
+		break;
+    case 2:
+    //..
+    break;
+    default:
+    // ....
+    break;
+}
+
+	return a;
 }
 
 
