@@ -186,24 +186,24 @@ socket.emit("connectedToNode");
 
        socket.on("VERIFY_BUY_UPGRADE", function(data){//data includes what is being bought, and i get price from table from DB. ALSO load all prices from table from DB @ start of game.
 
-         console.log("got autosave data from client, pushing to ");
+         console.log("Client No. " + allClients.indexOf(socket) +" is buying something"); //add upgrade name to console.log
 
     });
 
         socket.on("VERIFY_COLLECT_TILE", function(data){//data contains which tile is being collected, and need checks for everything else(fertilizer/booster or some shit idk(should be stored in TILE DB, and verified when fertilised))
 
-         console.log("got autosave data from client, pushing to ");
+         console.log("Client No. " + allClients.indexOf(socket) +" is collecting ");//add tile name, but remove later, because 2much spam
 
     });
 
         socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
-         console.log("got autosave data from client, pushing to ");
+         console.log("Client No. " + allClients.indexOf(socket) +" is upgrading his plotsize "); //add from what plotsize to what plotsize later
 
     });
 	
 	    socket.on("VERIFY_ACTION",function(data){// misc action verifyinimo funkcija.
-			 //TODO: socket.on that does misc stuff(fertilise shit, t.t idk //THIS ONE
+			 //every misc action goes here by switch/case(fertilising, bleh bleh.)
 			
 			
 			
@@ -211,7 +211,9 @@ socket.emit("connectedToNode");
 	});
 
         //GAME TODO's  
-       
+		
+        //TODO: in-game currency and plotsize adjustment buttons that emit verifications. Make them work and we got a noic working skeleton there.
+		//TODO: establish lastlogged auto sender to start pushing unix times to DB
         //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game. Place temporary text in game for how much time was lost(DEBUG)
 		
 		
@@ -222,6 +224,14 @@ socket.emit("connectedToNode");
 		//TODO: checks in each function for discrepancies, and if something doesnt match up, send VERIFICATION,false and stop connection(prolly not)? and DONT SAVE TO DB. 
 		//TODO: resync function for when VERIFICATION is false. Send to client and change all values MB so no restart is needed. Also include resyncing screen for the time it takes to 
         //TODO: version control? if somebody manages to DL the game and has older version then this could get fucked.
+		
+		
+		//NON-PRIORITY
+		
+		//TODO: set up login screen credits ALSO make simple socket.emit in the client for emitting feedback. Some new table in DB to store that.
+		//TODO:music, and music-soundcloud hookup SUPERNON PRIORITY
+		//TODO:effects for upgrading and buying towers + collecting stuff
+		
 
 
 
@@ -244,7 +254,7 @@ function InsertDefaultStats(username,dollars,lastonline,plotsize) {
 
     var post = { username: username, dollars:dollars,lastonline:lastonline,plotsize:plotsize };
 
-    console.log("inserting default stats into DB: "+UserDollars+UserPlotSize+UserLastOnline);
+    console.log("inserting default stats into DB");
     connectionpool.getConnection(function (err, connection) {
         // Use the connection
         connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
@@ -260,12 +270,13 @@ function CleanInput(a,mode){
 switch(mode) {
 	case 1:
 		var b = a.replace(/[^a-zA-Z0-9]/gi,'');
-        console.log("Cleaned "+a+" into "+b);
+        console.log("Cleaner cleaned "+a+" into "+b);
 		
 		break;
-    case 2:
+    case 2: //kiti refinery modes
     //..
     break;
+	
     default:
     // ....
     break;
