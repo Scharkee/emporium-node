@@ -143,6 +143,17 @@ socket.emit("connectedToNode");
                     UserDollars=rows[0].dollars;
                     UserPlotSize=rows[0].plotsize;
                     UserLastOnline=rows[0].lastonline;
+					
+					if(rows[0].accesslevel==2)
+					{   //moderator?
+						
+						
+						
+					}else if(rows[0].accesslevel==3){
+						//admin
+						 socket.emit("ENABLE_ADMIN_PANEL", true);   //TODO: follow this up in unity.
+						
+					}
 
                     console.log(rows);//delete this shit afterwards
                 }
@@ -212,6 +223,7 @@ socket.emit("connectedToNode");
 
         //GAME TODO's  
 		
+		//TODO: admin panel, maybe even new column in STATS(for admins), only show button for admin panel for admins.
         //TODO: in-game currency and plotsize adjustment buttons that emit verifications. Make them work and we got a noic working skeleton there.
 		//TODO: establish lastlogged auto sender to start pushing unix times to DB
         //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game. Place temporary text in game for how much time was lost(DEBUG)
