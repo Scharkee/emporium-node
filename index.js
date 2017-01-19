@@ -41,12 +41,13 @@ var UserPlotSize;
 var UserLastOnline;
 
 
+
 allClients.push(socket);   //registruojamas 
 
 
 console.log("Connection Up, client ID: "+ allClients.indexOf(socket)+", Connection IP: "+ socket.request.connection.remoteAddress);
 
-socket.emit("connectedToNode");
+socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 	
     socket.on("CHECK_LOGIN", function (data) {
@@ -137,12 +138,12 @@ socket.emit("connectedToNode");
 					
                 } else {//if DB finds matches for username, fuckeen get em.
 
-                    socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: rows[0].lastonline });
+                    var lastonlinestring = rows[0].lastonline.toString();
+
+                    socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: lastonlinestring });
                     console.log(rows[0].lastonline);
 
-                    UserDollars=rows[0].dollars;
-                    UserPlotSize=rows[0].plotsize;
-                    UserLastOnline=rows[0].lastonline;
+        
 					
 					if(rows[0].accesslevel==2)
 					{   //moderator?
@@ -159,6 +160,18 @@ socket.emit("connectedToNode");
                 }
                 connection.release();
 
+
+
+                    setInterval(function(){
+
+                            socket.emit("LASTONLINE_PING"); 
+                             console.log("sending LASTONLINE_PING to client");
+                              if(socket.disconnected){
+                                console.log("client disconnected, not sending pings anymore."); //TODO: FIX THIS
+                              }
+                     
+                           }, 20000);
+   
             });
         });
 
@@ -173,19 +186,24 @@ socket.emit("connectedToNode");
         var unix = Math.round(+new Date() / 1000);
 
         connectionpool.getConnection(function (err, connection) {
+
+
+             var sql = "UPDATE stats SET lastonline = "+"'" + unix + "'"+" WHERE username = ?";
         
-        connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
+        
+        connection.query(sql,username, function (err, rows, fields) {
             if (err) throw err;
 
             // And done with the connection.
             connection.release();
 
         });
+        console.log("got LASTONLINE_PING respornse from client, pushing to server ");
 
-        socket.emit("VERIFICATION", true); //TODO: if client receives verification false (or none at all,), show discrepency warning and shutt of game?
+        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepency warning and shutt of game?
     });
 
-         console.log("got lastlogged in check respornse from client, pushing to server ");
+         
     });
 
 
@@ -296,6 +314,27 @@ switch(mode) {
 
 	return a;
 }
+
+
+
+function interval(func, wait, times){
+    var interv = function(w, t){
+        return function(){
+            if(typeof t === "undefined" || t-- > 0){
+                setTimeout(interv, w);
+                try{
+                    func.call(null);
+                }
+                catch(e){
+                    t = 0;
+                    throw e.toString();
+                }
+            }
+        };
+    }(wait, times);
+
+    setTimeout(interv, wait);
+};
 
 
 server.listen(2333,function(){
