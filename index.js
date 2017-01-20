@@ -7,6 +7,7 @@ var io = require('socket.io').listen(server);
 app.set('port', 2333);
 
 var clients=[];
+const saltRounds = 10;
 
 var mysql = require('mysql');
 
@@ -55,6 +56,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 		var userpass = CleanInput(data.Upass,1);
 		socket[user.username]=CleanInput(data.Uname,1);//this shit here is kinda obnoxious, clean up blyet sometime.
+		
      
 		var passStatus;
 
@@ -84,8 +86,35 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
 
 		        }
+				
+				
+				//ISTRINT USERPASS LYGINIMUS AUKSCIAU TEN /\, VIETOJ TO IDET SITA:
+				
+				/*
+				
+				bcrypt.compare(userpass, rows[0].password, function(err, res){
+					
+					if(res){
+						
+				    console.log("Hash checks out! Password is correct!");
+		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
+						
+					}else if (!res){
+						
+		            console.log("Hash did not check out. Wrong password!");
+		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
+					
+					}
+				});
+				
+				
+				*/
+				
+				//else if(userpass == rows[0].password && loggedIn= true (is vieno acc tik is vienos vietos galima prisijungti))
+					
 		        //TODO: dupe account function that callbacks  PASS_CHECK_CALLBACK as 3.
-                //TODO: this shit with passStatus, should clean it up to be just 0, 1 or 2 or 3.
+				
+                
 		        connection.release();
 		    });
 		});
@@ -97,12 +126,43 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         var username = data.Uname;
         var userpass = data.Upass;
+		
+		/*
+		
+		bcrypt.hash(userpass,saltRounds,function(err,hash){ 
+		
+		
+		var post = { username: username, password: hash };
+
+        console.log("creating new user for "+username)
+		
+		
+		connectionpool.getConnection(function (err, connection) {
+                
+                connection.query('INSERT INTO users SET ?', post, function(err, result) {
+		   
+                    if (err) throw err;
+
+                    // And done with the connection.
+                    connection.release();
+
+                });
+            });
+		          
+
+
+		});
+		
+		//DEL THAT \/, AND KEEP THAT /\
+		
+		*/
+		
         var post = { username: username, password: userpass };
 
         console.log("creating new user for "+username)
        
             connectionpool.getConnection(function (err, connection) {
-                // Use the connection
+                
                 connection.query('INSERT INTO users SET ?', post, function(err, result) {
 		   
                     if (err) throw err;
@@ -187,11 +247,9 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         connectionpool.getConnection(function (err, connection) {
 
-
-             var sql = "UPDATE stats SET lastonline = "+"'" + unix + "'"+" WHERE username = ?";
+             var sql = "UPDATE stats SET lastonline = ? WHERE username = ??"; // check if runs.
         
-        
-        connection.query(sql,username, function (err, rows, fields) {
+        connection.query(sql,unix,username, function (err, rows, fields) {
             if (err) throw err;
 
             // And done with the connection.
@@ -200,10 +258,10 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         });
         console.log("got LASTONLINE_PING respornse from client, pushing to server ");
 
-        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepency warning and shutt of game?
+        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepency warning and shut off game?
     });
 
-         
+
     });
 
 
@@ -259,8 +317,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 		//NON-PRIORITY
 		
 		//TODO: set up login screen credits ALSO make simple socket.emit in the client for emitting feedback. Some new table in DB to store that.
-		//TODO:music, and music-soundcloud hookup SUPERNON PRIORITY
-		//TODO:effects for upgrading and buying towers + collecting stuff
+		//TODO: music, and music-soundcloud hookup SUPERNON PRIORITY
+		//TODO: effects for upgrading and buying towers + collecting stuff
 		
 
 
@@ -304,8 +362,12 @@ switch(mode) {
 		
 		break;
     case 2: //kiti refinery modes
-    //..
+    //..code
     break;
+	
+	case 3: // trecias refinery mode
+	//code
+	break;
 	
     default:
     // ....
@@ -316,25 +378,6 @@ switch(mode) {
 }
 
 
-
-function interval(func, wait, times){
-    var interv = function(w, t){
-        return function(){
-            if(typeof t === "undefined" || t-- > 0){
-                setTimeout(interv, w);
-                try{
-                    func.call(null);
-                }
-                catch(e){
-                    t = 0;
-                    throw e.toString();
-                }
-            }
-        };
-    }(wait, times);
-
-    setTimeout(interv, wait);
-};
 
 
 server.listen(2333,function(){
