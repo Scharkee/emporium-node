@@ -7,9 +7,10 @@ var io = require('socket.io').listen(server);
 app.set('port', 2333);
 
 var clients=[];
-const saltRounds = 10;
+const saltRounds = 1;
 
 var mysql = require('mysql');
+var bcrypt = require('bcrypt');
 
 var connectionpool = mysql.createPool({
     connectionlimit : 10,
@@ -29,6 +30,7 @@ var connectionpool_tiles = mysql.createPool({//TODO: adapt this for connection f
     database: 'emporium'
 });
 
+var clientCount = [];
 var allClients = [];
 
 var user=[];
@@ -43,10 +45,11 @@ var UserLastOnline;
 
 
 
-allClients.push(socket);   //registruojamas 
+clientCount.push(socket);  
+ //registruojamas socket + user IP
 
 
-console.log("Connection Up, client ID: "+ allClients.indexOf(socket)+", Connection IP: "+ socket.request.connection.remoteAddress);
+console.log("Connection Up, client ID: "+ clientCount.indexOf(socket)+", Connection IP: "+ socket.request.connection.remoteAddress);
 
 socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
@@ -54,65 +57,68 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
     socket.on("CHECK_LOGIN", function (data) {
 
 
+
+
 		var userpass = CleanInput(data.Upass,1);
-		socket[user.username]=CleanInput(data.Uname,1);//this shit here is kinda obnoxious, clean up blyet sometime.
+		var username = CleanInput(data.Uname,1); //this shit here is kinda obnoxious, clean up blyet sometime.
 		
+        if(allClients.contains(username)){ //NEEDS TESTING.
+
+            console.log("user already logged in from different computer!");
+
+             socket.emit("PASS_CHECK_CALLBACK", { passStatus: 3 }); //DISCREPENCY CALL FOR THE CLIENT TO SHUT OFF. 
+
+
+
+        }else{
+
+            allClients.push([username,socket.request.connection.remoteAddress]); //adding username + IP to log list of users
+
+        }
      
 		var passStatus;
 
-        console.log("user.username is "+ socket[user.username]);
+        console.log("user.username is "+ username);
 
-		username = "'" + socket[user.username] + "'";
 		
-		var sqlq = 'SELECT password FROM users WHERE username = ' + username;
+		var sqlq = 'SELECT password FROM users WHERE username = ?';
 		
 
 		connectionpool.getConnection(function (err, connection) {
 		    // Use the connection
-		    connection.query(sqlq, function (err, rows, fields) {
+		    connection.query(sqlq,username, function (err, rows, fields) {
 		  
 		        if (err) throw err;
 
 		        if(!rows.length){
 		            console.log("user does not exist! ");
 		        socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
-		        } else if (userpass != rows[0].password) {//try again cyker
-		      
-		            console.log("passwords do not match!");
-		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
-		        }else if (userpass == rows[0].password) {//u in bro
-		            console.log("passwords match!");
-		      
-		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
+		        } else{
 
-		        }
-				
-				
-				//ISTRINT USERPASS LYGINIMUS AUKSCIAU TEN /\, VIETOJ TO IDET SITA:
-				
-				/*
-				
-				bcrypt.compare(userpass, rows[0].password, function(err, res){
-					
-					if(res){
-						
-				    console.log("Hash checks out! Password is correct!");
-		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
-						
-					}else if (!res){
-						
-		            console.log("Hash did not check out. Wrong password!");
-		            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
-					
-					}
-				});
-				
-				
-				*/
+
+                    var pass = rows[0].password;
+
+                    bcrypt.compare(userpass, pass , function(err, res){
+             
+                    if(res==true){
+                        
+                    console.log("Hash checks out! Password is correct!");
+                    socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
+                        
+                    }else if (res==false){
+                        
+                    console.log("Hash did not check out. Wrong password!");
+                    socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
+                    
+                    }
+                });
+                
+                }
+	
 				
 				//else if(userpass == rows[0].password && loggedIn= true (is vieno acc tik is vienos vietos galima prisijungti))
 					
-		        //TODO: dupe account function that callbacks  PASS_CHECK_CALLBACK as 3.
+		        //TODO: dupe account loggedin function that callbacks  PASS_CHECK_CALLBACK as 3.
 				
                 
 		        connection.release();
@@ -127,14 +133,15 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         var username = data.Uname;
         var userpass = data.Upass;
 		
-		/*
+		
 		
 		bcrypt.hash(userpass,saltRounds,function(err,hash){ 
 		
 		
 		var post = { username: username, password: hash };
 
-        console.log("creating new user for "+username)
+        console.log("creating new user for "+username);
+
 		
 		
 		connectionpool.getConnection(function (err, connection) {
@@ -153,27 +160,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 		});
 		
-		//DEL THAT \/, AND KEEP THAT /\
-		
-		*/
-		
-        var post = { username: username, password: userpass };
-
-        console.log("creating new user for "+username)
-       
-            connectionpool.getConnection(function (err, connection) {
-                
-                connection.query('INSERT INTO users SET ?', post, function(err, result) {
-		   
-                    if (err) throw err;
-
-                    // And done with the connection.
-                    connection.release();
-
-                });
-            });
-
-
+		 
+	
     });                                                                     
 
     //GAME STAT RETRIEVAL CALLS
@@ -201,8 +189,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                     var lastonlinestring = rows[0].lastonline.toString();
 
                     socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: lastonlinestring });
-                    console.log(rows[0].lastonline);
-
+               
         
 					
 					if(rows[0].accesslevel==2)
@@ -273,19 +260,19 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
        socket.on("VERIFY_BUY_UPGRADE", function(data){//data includes what is being bought, and i get price from table from DB. ALSO load all prices from table from DB @ start of game.
 
-         console.log("Client No. " + allClients.indexOf(socket) +" is buying something"); //add upgrade name to console.log
+         console.log("Client No. " + clientCount.indexOf(socket) +" is buying something"); //add upgrade name to console.log
 
     });
 
         socket.on("VERIFY_COLLECT_TILE", function(data){//data contains which tile is being collected, and need checks for everything else(fertilizer/booster or some shit idk(should be stored in TILE DB, and verified when fertilised))
 
-         console.log("Client No. " + allClients.indexOf(socket) +" is collecting ");//add tile name, but remove later, because 2much spam
+         console.log("Client No. " + clientCount.indexOf(socket) +" is collecting ");//add tile name, but remove later, because 2much spam
 
     });
 
         socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
-         console.log("Client No. " + allClients.indexOf(socket) +" is upgrading his plotsize "); //add from what plotsize to what plotsize later
+         console.log("Client No. " + clientCount.indexOf(socket) +" is upgrading his plotsize "); //add from what plotsize to what plotsize later
 
     });
 	
@@ -296,6 +283,16 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			
 	});
+
+        socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+
+        //user asks for UnixTime
+         var unix = Math.round(+new Date() / 1000);
+
+         socket.emit("RECEIVE_UNIX", {unixTime: unix});
+
+
+    });
 
         //GAME TODO's  
 		
@@ -327,11 +324,15 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
     //on client disconnected
 	   socket.on("disconnect", function (data) {
 
-        console.log("user nr. "+ allClients.indexOf(socket)+" dc'd");
+        console.log("user nr. "+ clientCount.indexOf(socket)+" dc'd");
 
-      var i = allClients.indexOf(socket);
-      allClients.splice(i, 1);
-		//TODO: maybe develop client tracking OR IP tracking. RIght now this is just list of clients.
+        console.log("allcleints.users before : "+allClients);
+      clientCount.splice(clientCount.indexOf(socket), 1);
+    
+      allClients.splice(allClients.indexOf(socket.request.connection.remoteAddress),1);  
+
+    console.log("allcleints.users after : "+allClients);
+
     });
 
 
@@ -350,7 +351,7 @@ function InsertDefaultStats(username,dollars,lastonline,plotsize) {
             connection.release();
         });
     });
-
+ 
 
 }
 
@@ -383,3 +384,7 @@ switch(mode) {
 server.listen(2333,function(){
     console.log("-----------SERVER STARTED------------");
 });
+
+Array.prototype.contains = function(element){
+    return this.indexOf(element) > -1;
+};
