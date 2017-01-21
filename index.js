@@ -20,7 +20,7 @@ var connectionpool = mysql.createPool({
     database: 'emporium'
 });
 
-//TODO: DONT CHANGE LOCALHOSTS INTO MY IP, cnage unity SOCKET node server IP.
+//TODO: DONT CHANGE LOCALHOSTS INTO MY IP, change unity SOCKET node server IP.
 
 var connectionpool_tiles = mysql.createPool({//TODO: adapt this for connection for storin tile information for the second DB
     connectionlimit : 10,
@@ -56,21 +56,21 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 	
     socket.on("CHECK_LOGIN", function (data) {
 
-
-
-
 		var userpass = CleanInput(data.Upass,1);
-		var username = CleanInput(data.Uname,1); //this shit here is kinda obnoxious, clean up blyet sometime.
+		var username = CleanInput(data.Uname,1);
+		
+		if(userpass !=data.Upass || username !=data.Uname) {
+			console.log("someone's injecting input or bug in InputField.");
+			//cast discrepancy
+		}
 		
         if(allClients.contains(username)){ //NEEDS TESTING.
 
             console.log("user already logged in from different computer!");
 
-             socket.emit("PASS_CHECK_CALLBACK", { passStatus: 3 }); //DISCREPENCY CALL FOR THE CLIENT TO SHUT OFF. 
+             socket.emit("PASS_CHECK_CALLBACK", { passStatus: 3 }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF. 
 
-
-
-        }else{
+        }else{//if no duplicate in userlist, add current client to list
 
             allClients.push([username,socket.request.connection.remoteAddress]); //adding username + IP to log list of users
 
@@ -156,12 +156,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                 });
             });
 		          
-
-
 		});
 		
-		 
-	
     });                                                                     
 
     //GAME STAT RETRIEVAL CALLS
@@ -245,12 +241,9 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         });
         console.log("got LASTONLINE_PING respornse from client, pushing to server ");
 
-        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepency warning and shut off game?
+        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepancy warning and shut off game?
     });
-
-
     });
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////0_0///
