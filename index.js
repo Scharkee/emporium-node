@@ -7,7 +7,7 @@ var io = require('socket.io').listen(server);
 app.set('port', 2333);
 
 var clients=[];
-const saltRounds = 1;
+const saltRounds = 10;
 
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
