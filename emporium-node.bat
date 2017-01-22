@@ -1,3 +1,3 @@
-
-node index.js > log.txt
+cd C:\PROGRAMS\emporium-node
+supervisor index.js 
 
