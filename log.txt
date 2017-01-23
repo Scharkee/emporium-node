@@ -1,0 +1,16 @@
+
+Running node-supervisor with
+  program 'index.js'
+  --watch '.'
+  --extensions 'node,js'
+  --exec 'node'
+
+Starting child process with 'node index.js'
+Watching directory 'C:\PROGRAMS\emporium-node' for changes.
+Press rs for restarting the process.
+-----------SERVER STARTED------------
+Program node index.js exited with code 3221225786
+
+Starting child process with 'node index.js'
+Received SIGHUP, killing child process...
+Parent process exiting, terminating child...

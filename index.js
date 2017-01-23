@@ -27,7 +27,7 @@ var connectionpool_tiles = mysql.createPool({//TODO: adapt this for connection f
     host: 'localhost',
     user: 'emporium-node',
     password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium'
+    database: 'emporium_users'
 });
 
 var clientCount = [];
@@ -205,15 +205,18 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
 
-                    setInterval(function(){
+                 var refreshIntervalId = setInterval(function(){
 
                             socket.emit("LASTONLINE_PING"); 
                              console.log("sending LASTONLINE_PING to client");
                               if(socket.disconnected){
                                 console.log("client disconnected, not sending pings anymore."); //TODO: FIX THIS
+                                clearInterval(refreshIntervalId);
                               }
                      
                            }, 20000);
+
+
    
             });
         });
@@ -230,9 +233,9 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         connectionpool.getConnection(function (err, connection) {
 
-             var sql = "UPDATE stats SET lastonline = ? WHERE username = ??"; // check if runs.
+          
         
-        connection.query(sql,unix,username, function (err, rows, fields) {
+        connection.query('UPDATE stats SET lastonline = ? WHERE username = ' + "'" + username + "'",unix, function (err, rows, fields) {
             if (err) throw err;
 
             // And done with the connection.
@@ -241,9 +244,47 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         });
         console.log("got LASTONLINE_PING respornse from client, pushing to server ");
 
-        socket.emit("VERIFICATION", {ver: true}); //TODO: if client receives verification false (or none at all,), show discrepancy warning and shut off game?
+        //TODO: if client receives verification false (or none at all,), show discrepancy warning and shut off game?
+    });
+
+        socket.emit("VERIFICATION", {ver: true}); 
+    });
+
+
+
+
+        socket.on("GET_TILE_DATA", function(data){//tile information function
+
+        var username = data.Uname;
+        
+        connectionpool_tiles.getConnection(function (err, connection) {
+
+
+         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(40) NOT NULL , `PROGRESS` INT(200) NOT NULL , `X` FLOAT(50) NOT NULL , `Y` FLOAT(50) NOT NULL , `FERTILISED` INT(200) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
+            if (err) throw err;
+        });
+
+
+
+        connection.query('SELECT * FROM ??',data.Uname, function (err, rows, fields) {
+            if (err) throw err;
+
+
+            socket.emit("RECEIVE_TILES", {rows});
+
+
+            console.log("sent tile data back to client");
+            console.log(rows);
+
+   
+            connection.release();
+
+        });
+        
+
     });
     });
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////0_0///
