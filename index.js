@@ -284,6 +284,76 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
     });
     });
+	
+	
+	socket.on("BUY_TILE", function(data){//tile purchase function
+
+        var username = data.Uname;
+		var buildingname = data.BuildingName;
+		var DBdollars;
+		var DBBuildingPrice;
+		var TileX;
+		var TileY;
+		
+        
+        connectionpool.getConnection(function (err, connection) {
+
+
+         connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+            if (err) throw err;
+			
+			
+			DBdollars=rows[0].dollars;
+        });
+		
+		 connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
+            if (err) throw err;
+			
+			
+			DBBuildingPrice=rows[0].PRICE;
+			
+			
+			
+			connection.release();
+        });
+
+
+    });
+	
+	
+	connectionpool_tiles.getConnection(function (err, connection){
+		
+		
+				
+		if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
+		
+		var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Y :TileY ,FERTILISED:0 };   // wrong query prolly, match up with tile tables
+		
+			
+	    connection.query('INSERT INTO ?? SET ?',username,post, function (err, rows, fields) {
+            if (err) throw err;
+			
+			 socket.emit("BUILD_TILE", { TileName: buildingname, TileX :TileX, TileY: TileY});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
+		
+            
+			connection.release();
+			
+			
+        });
+			
+			
+			
+		}else{//not enough dollars to buy boi
+			
+			
+			
+		}
+		
+		
+	
+		
+	});
+    });
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
