@@ -260,7 +260,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         connectionpool_tiles.getConnection(function (err, connection) {
 
 
-         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(40) NOT NULL , `PROGRESS` INT(200) NOT NULL , `X` FLOAT(50) NOT NULL , `Y` FLOAT(50) NOT NULL , `FERTILISED` INT(200) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
+         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(40) NOT NULL , `PROGRESS` INT(200) NOT NULL , `X` FLOAT(50) NOT NULL , `Z` FLOAT(50) NOT NULL , `FERTILISED` INT(200) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
             if (err) throw err;
         });
 
@@ -292,9 +292,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 		var buildingname = data.BuildingName;
 		var DBdollars;
 		var DBBuildingPrice;
-		var TileX;
-		var TileY;
-		
+		var TileX =  data.X;
+		var TileZ = data.Z;
         
         connectionpool.getConnection(function (err, connection) {
 
@@ -304,53 +303,47 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			
 			DBdollars=rows[0].dollars;
+			
         });
+		
+		console.log("DB dollars after setting is = "+DBdollars);
 		
 		 connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
             if (err) throw err;
 			
-			
 			DBBuildingPrice=rows[0].PRICE;
-			
-			
 			
 			connection.release();
         });
+		
+			console.log("DB buildingprice after setting is = "+DBBuildingPrice);
 
 
     });
 	
 	
-	connectionpool_tiles.getConnection(function (err, connection){
+	connectionpool_tiles.getConnection(function (err, connection){  //completely new connection fron tile connection pool for inserting into the tile table. 
 		
-		
-				
+	
 		if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
 		
-		var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Y :TileY ,FERTILISED:0 };   // wrong query prolly, match up with tile tables
+		var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Z :TileZ ,FERTILISED:0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
 		
-			
+		
 	    connection.query('INSERT INTO ?? SET ?',username,post, function (err, rows, fields) {
             if (err) throw err;
 			
-			 socket.emit("BUILD_TILE", { TileName: buildingname, TileX :TileX, TileY: TileY});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
+			 socket.emit("BUILD_TILE", { TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
 		
             
 			connection.release();
-			
-			
         });
 			
-			
-			
 		}else{//not enough dollars to buy boi
-			
-			
+			var missing = DBBuildingPrice-DBdollars;
+			socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
 			
 		}
-		
-		
-	
 		
 	});
     });
