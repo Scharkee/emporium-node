@@ -303,32 +303,40 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			
 			DBdollars=rows[0].dollars;
+
+            console.log("rows.dollars i= "+rows[0].dollars);
+        
 			
         });
 		
-		console.log("DB dollars after setting is = "+DBdollars);
+		
 		
 		 connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
             if (err) throw err;
 			
 			DBBuildingPrice=rows[0].PRICE;
+
+
+            console.log("DB dollars after setting is = "+DBdollars);
+            console.log("DB buildingprice after setting is = "+DBBuildingPrice);
 			
 			connection.release();
         });
 		
-			console.log("DB buildingprice after setting is = "+DBBuildingPrice);
+			
 
 
     });
 	
 	
 	connectionpool_tiles.getConnection(function (err, connection){  //completely new connection fron tile connection pool for inserting into the tile table. 
-		
-	
+
 		if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
+
+        TakeAwayMoney(DBdollars,buildingprice,username);
 		
 		var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Z :TileZ ,FERTILISED:0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
-		
+		console.log(post);
 		
 	    connection.query('INSERT INTO ?? SET ?',username,post, function (err, rows, fields) {
             if (err) throw err;
@@ -473,6 +481,25 @@ switch(mode) {
 }
 
 	return a;
+}
+
+function TakeAwayMoney(money,lostmoney,username){
+
+
+
+        connectionpool.getConnection(function (err, connection) {
+            var remaining = money-lostmoney;
+            var post = {dollars : remaining}
+
+
+         connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'",post, function (err, rows, fields) {
+            if (err) throw err;
+            
+        });
+    });
+
+
+
 }
 
 
