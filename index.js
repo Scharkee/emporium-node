@@ -292,8 +292,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 		var buildingname = data.BuildingName;
 		var DBdollars;
 		var DBBuildingPrice;
-		var TileX =  data.X;
-		var TileZ = data.Z;
+		var TileX =  parseFloat(data.X);
+		var TileZ = parseFloat(data.Z);
         
         connectionpool.getConnection(function (err, connection) {
 
@@ -304,7 +304,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			DBdollars=rows[0].dollars;
 
-            console.log("rows.dollars i= "+rows[0].dollars);
+            console.log("user money in DB is = "+rows[0].dollars);
         
 			
         });
@@ -317,8 +317,43 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			DBBuildingPrice=rows[0].PRICE;
 
 
-            console.log("DB dollars after setting is = "+DBdollars);
-            console.log("DB buildingprice after setting is = "+DBBuildingPrice);
+     
+            console.log("retrievet price for "+buildingname+" is "+DBBuildingPrice);
+
+
+
+
+
+         connectionpool_tiles.getConnection(function (err, connectionT){  //completely new connection fron tile connection pool for inserting into the tile table. 
+
+        if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
+            console.log("enough money for tile. ");
+
+        TakeAwayMoney(DBdollars,DBBuildingPrice,username);
+        
+        var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Z :TileZ ,FERTILISED:0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
+        console.log(post);
+
+        
+        connectionT.query('INSERT INTO ' + username +' SET ?',post, function (err, rows, fields) {
+            if (err) throw err;
+           
+
+            
+             socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
+        
+            
+            connectionT.release();
+        });
+            
+        }else{//not enough dollars to buy boi
+            console.log("not enough money for tile. ");
+            var missing = DBBuildingPrice-DBdollars;
+            socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
+            
+        }
+        
+    });
 			
 			connection.release();
         });
@@ -329,31 +364,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
     });
 	
 	
-	connectionpool_tiles.getConnection(function (err, connection){  //completely new connection fron tile connection pool for inserting into the tile table. 
-
-		if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
-
-        TakeAwayMoney(DBdollars,buildingprice,username);
-		
-		var post= { NAME: buildingname, PROGRESS:0 , X:TileX , Z :TileZ ,FERTILISED:0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
-		console.log(post);
-		
-	    connection.query('INSERT INTO ?? SET ?',username,post, function (err, rows, fields) {
-            if (err) throw err;
-			
-			 socket.emit("BUILD_TILE", { TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
-		
-            
-			connection.release();
-        });
-			
-		}else{//not enough dollars to buy boi
-			var missing = DBBuildingPrice-DBdollars;
-			socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
-			
-		}
-		
-	});
+	
     });
 
 
