@@ -84,7 +84,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 		var sqlq = 'SELECT password FROM users WHERE username = ?';
 		
 
-		connectionpool.getConnection(function (err, connection) {
+		connectionpool.getConnection(function (err, connection) { 
 		    // Use the connection
 		    connection.query(sqlq,username, function (err, rows, fields) {
 		  
@@ -260,7 +260,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         connectionpool_tiles.getConnection(function (err, connection) {
 
 
-         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(10) NOT NULL , `PROGRESS` INT(10) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED` INT(10) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
+         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(10) NOT NULL , `PROGRESS` INT(10) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
             if (err) throw err;
         });
 
@@ -352,14 +352,11 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
             socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
             
         }
-        
     });
-			
 			connection.release();
         });
 		
 			
-
 
     });
 	
@@ -377,6 +374,45 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
        socket.on("VERIFY_BUY_UPGRADE", function(data){//data includes what is being bought, and i get price from table from DB. ALSO load all prices from table from DB @ start of game.
 
          console.log("Client No. " + clientCount.indexOf(socket) +" is buying something"); //add upgrade name to console.log
+
+
+        connectionpool_tiles.getConnection(function (err, connectionT){  //completely new connection fron tile connection pool for inserting into the tile table. 
+
+        if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
+            console.log("Enough dollars to upgrade. ");
+            TakeAwayMoney(DBdollars,DBBuildingPrice,username);
+        
+            var post= { NAME: buildingname, COUNT:0 , X:TileX , Z :TileZ ,FERTILISED:0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
+    
+
+        
+        connectionT.query('INSERT INTO ' + username +' SET ?',post, function (err, rows, fields) {
+            if (err) throw err;
+           
+
+            
+             socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
+        
+            
+            connectionT.release();
+        });
+            
+        }else{//not enough dollars to buy boi
+            console.log("not enough money for tile. ");
+            var missing = DBBuildingPrice-DBdollars;
+            socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
+            
+        }
+    });
+
+
+
+
+
+
+
+
+
 
     });
 
@@ -508,6 +544,29 @@ function TakeAwayMoney(money,lostmoney,username){
             
         });
     });
+
+
+
+}
+
+
+function CheckIfEnoughOf(post,username){
+    var enough;
+
+
+
+        connectionpool.getConnection(function (err, connection) {
+      
+            
+
+
+         connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'",post, function (err, rows, fields) {
+            if (err) throw err;
+            
+        });
+    });
+
+        return enough;
 
 
 
