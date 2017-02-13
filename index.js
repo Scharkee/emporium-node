@@ -118,9 +118,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 				
 				//else if(userpass == rows[0].password && loggedIn= true (is vieno acc tik is vienos vietos galima prisijungti))
 					
-		        //TODO: dupe account loggedin function that callbacks  PASS_CHECK_CALLBACK as 3.
-				
-                
+		        //TODO: dupe account loggedin function that callbacks  PASS_CHECK_CALLBACK
 		        connection.release();
 		    });
 		});
@@ -273,7 +271,9 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
             socket.emit("RECEIVE_TILES", {rows});
 
 
-            console.log("sent tile data back to client");
+            console.log("Updating tile progress for client");
+
+
             console.log(rows);
 
    
@@ -340,7 +340,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
            
 
             
-             socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
+             socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  
         
             
             connectionT.release();
@@ -400,7 +400,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         }else{//not enough dollars to buy boi
             console.log("not enough money for tile. ");
             var missing = DBBuildingPrice-DBdollars;
-            socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
+            socket.emit("NOT_ENOUGH", {item : "money" ,  : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
             
         }
     });
@@ -478,12 +478,12 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         console.log("user nr. "+ clientCount.indexOf(socket)+" dc'd");
 
-        console.log("allcleints.users before : "+allClients);
+        console.log("allclients.users before : "+allClients);
       clientCount.splice(clientCount.indexOf(socket), 1);
     
       allClients.splice(allClients.indexOf(socket.request.connection.remoteAddress),1);  
 
-    console.log("allcleints.users after : "+allClients);
+    console.log("allclients.users after : "+allClients);
 
     });
 
@@ -532,8 +532,6 @@ switch(mode) {
 
 function TakeAwayMoney(money,lostmoney,username){
 
-
-
         connectionpool.getConnection(function (err, connection) {
             var remaining = money-lostmoney;
             var post = {dollars : remaining}
@@ -544,30 +542,91 @@ function TakeAwayMoney(money,lostmoney,username){
             
         });
     });
-
-
-
 }
 
 
-function CheckIfEnoughOf(post,username){
+function TakeAwayItem(item, amount, username) {
+
+    connectionpool.getConnection(function (err, connection) {
+
+        connection.query('SELECT ? FROM stats WHERE username = ' + "'" + username + "'",item, function (err, rows, fields) {
+            if (err) throw err;
+
+            var remaining = rows[0][item] - amount;
+            var post = { dollars: remaining }//FIXME
+
+
+            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+                if (err) throw err;
+
+            });
+
+
+        });
+        
+        connection.release();
+    });
+}
+
+
+function CheckIfEnoughOf(item,amount,username){ //CHECK if works
     var enough;
 
+    connectionpool.getConnection(function (err, connection) {
+    connection.query("SELECT ? FROM stats WHERE username = '" + username + "'",item, function (err, rows, fields) { // check if query works
+        if (err) throw err;
+        console.log("item amount from database = " + rows[0][item]);
 
+        if (amount < rows[0][item]) {   //FIXME: access rows.NAME of item requested. (inputting money means accessing rows.money)
+            enough = true;
+  
+        } else {
+            enough = false;
+            var missing = amount-rows[0][item];
+            Socket.emit("NOT_ENOUGH", {item: item, missing : missing});
+        }
 
-        connectionpool.getConnection(function (err, connection) {
-      
-            
+    });
 
-
-         connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'",post, function (err, rows, fields) {
-            if (err) throw err;
-            
-        });
+    connection.release();
     });
 
         return enough;
 
+}
+
+function UpdateTileProgress(rows,lastonline){
+    var unix = Math.round(+new Date() / 1000);
+    var timeoff = unix-lastonline;
+    var TileNum = rows.length;
+    var i = 1;
+
+    while(i<TileNum){
+
+        rows[i].PROGRESS+=timeoff;
+
+        i++;
+    }
+
+
+
+
+    connectionpool_tiles.getConnection(function (err, connection) {
+
+        // DB naujas progress sekimas: kai medis resettinamas(pasodinamas), issaugom timebefore. Tada kas 20 sekundziu updatinant timeafter, galima patikrint, ar timeafter-timebefore > progCeiling. Jei taip = medis uzauges. Kai medi harvestina, resettinam timebefore i current time.  
+          
+        connection.query('UPDATE ' + username +' SET PROGRESS = ? WHERE ID = ' ,unix, function (err, rows, fields) {
+            if (err) throw err;
+
+            // And done with the connection.
+            connection.release();
+
+        });
+
+    });
+
+
+    //update full MYSQL table for progress 
 
 
 }
