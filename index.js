@@ -3,6 +3,7 @@ var app=express();
 var shortId 		= require('shortid');
 var server=require('http').createServer(app);
 var io = require('socket.io').listen(server);
+var Chance = require('chance');
 
 app.set('port', 2333);
 
@@ -22,7 +23,7 @@ var connectionpool = mysql.createPool({
 
 //TODO: DONT CHANGE LOCALHOSTS INTO MY IP, change unity SOCKET node server IP.
 
-var connectionpool_tiles = mysql.createPool({//TODO: adapt this for connection for storin tile information for the second DB
+var connectionpool_tiles = mysql.createPool({
     connectionlimit : 10,
     host: 'localhost',
     user: 'emporium-node',
@@ -39,9 +40,12 @@ io.on("connection", function (socket) {
 //fix this shit, istrint shitty variables
 var currentUser;	    
 
+var UserUsername;
 var UserDollars;
 var UserPlotSize;
 var UserLastOnline;
+
+var chance = new Chance();
 
 
 
@@ -57,7 +61,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
     socket.on("CHECK_LOGIN", function (data) {
 
 		var userpass = CleanInput(data.Upass,1);
-		var username = CleanInput(data.Uname,1);
+		var username = CleanInput(data.Uname, 1);
+		UserUsername = username;
 		
 		if(userpass !=data.Upass || username !=data.Uname) {
 			console.log("someone's injecting input or bug in InputField.");
@@ -292,9 +297,25 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                     socket.emit("RECEIVE_TILE_INFORMATION", { rows });
 
                     console.log(rows);
+                   
+
+                });
+
+
+                //ALSO GETS INVENTORY FOR PLAYER
+
+                connection.query('SELECT * FROM inventories WHERE username = ' + "'" + data.Uname + "'", function (err, rows, fields) {
+                    if (err) throw err;
+
+
+                    socket.emit("RECEIVE_INVENTORY", { rows });
+
+                    console.log(rows);
                     connection.release();
 
                 });
+
+
             });
         });
 
@@ -416,13 +437,136 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         }
     });
 
-    });
+       });
 
-        socket.on("VERIFY_COLLECT_TILE", function(data){//data contains which tile is being collected, and need checks for everything else(fertilizer/booster or some shit idk(should be stored in TILE DB, and verified when fertilised))
 
-         console.log("Client No. " + clientCount.indexOf(socket) +" is collecting ");//add tile name, but remove later, because 2much spam
 
-    });
+
+       socket.on("VERIFY_COLLECT_TILE", function (data) {
+
+     
+
+
+           //LEFTOFF: make this shit work. send back fruit delete request.
+
+
+
+
+           var Uname = data.Uname;
+           var tileID = data.TileID;
+           var tileProgAmount;
+           var tileName;
+           var tileGrowthStart;
+
+           var tileProduceName;
+           var tileProduceRandomRange1;
+           var tileProduceRandomRange2;
+
+
+
+           connectionpool_tiles.getConnection(function (err, connectionT){
+
+               connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+               if (err) throw err;
+
+               tileName = rows[0].NAME;
+               tileGrowthStart = rows[0].START_OF_GROWTH;
+
+
+               connectionpool.getConnection(function (err, connection) {
+
+                   connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+
+                       tileProgAmount = rows[0].PROG_AMOUNT;
+
+                       tileProduceName = rows[0].TILEPRODUCENAME;
+                       tileProduceRandomRange1 = rows[0].TILEPRODUCERANDOM1;
+                       tileProduceRandomRange2 = rows[0].TILEPRODUCERANDOM2;
+
+
+
+                       var prog =  Number(tileGrowthStart) + tileProgAmount;   //FIXME: Number() because of varchar in MYSQL
+
+                       if (UnixTime() >= prog) {//Resetting tile progress and adding items to inventory
+
+                           var randProduce = chance.floating({ min: tileProduceRandomRange1, max: tileProduceRandomRange2 }).toFixed(2); //randomized produce kiekis
+
+                           connection.query('SELECT '+tileProduceName+' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                               if (err) throw err;
+
+
+                               console.log(rows);
+                               var newProduceAmount = rows[0][tileProduceName] + Number(randProduce);
+
+
+
+                               var unixBuffer = UnixTime(); //temp probably FIXME
+                               var unixJson = { unixBuffer: unixBuffer.toString() };
+                               
+
+
+
+                               connection.query('UPDATE inventories SET ' + tileProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                   if (err) throw err;
+
+                               });
+                               console.log(newProduceAmount);
+                               socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
+
+                           });
+                           
+              
+
+
+                           connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = '+UnixTime() +' WHERE ID = ' +tileID, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                               if (err) throw err;
+
+                           });
+
+
+
+
+
+                       } else {
+
+
+                           console.log("=====================harvest not allowed=======================");
+                           //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
+
+
+                       }
+
+                   });
+
+
+
+               });
+
+
+
+        
+
+               connectionT.release();
+           });
+
+
+
+
+           });
+
+
+
+
+
+
+
+
+
+
+
+
+
+       });
 
         socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
@@ -483,9 +627,18 @@ function InsertDefaultStats(username,dollars,lastonline,plotsize) {
     var post = { username: username, dollars:dollars,lastonline:lastonline,plotsize:plotsize };
 
     console.log("inserting default stats into DB");
-    connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function (err, connection) { // starting a stats table entry for new client
         // Use the connection
         connection.query('INSERT INTO stats SET ?',post, function (err, rows, fields) {
+            if (err) throw err;
+          
+        });
+
+        var postInventories = { username: username };
+
+        //starting a inventories table entry for new client
+
+        connection.query('INSERT INTO inventories SET ?', postInventories, function (err, rows, fields) { 
             if (err) throw err;
             connection.release();
         });
