@@ -263,7 +263,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         connectionpool_tiles.getConnection(function (err, connection) {
 
 
-         connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;',data.Uname, function (err, rows, fields) {
+            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
             if (err) throw err;
         });
 
@@ -358,7 +358,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         TakeAwayMoney(DBdollars,DBBuildingPrice,username);
         
-        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0 };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT : 0};   // matched querry , match up with tile tables for inserting  bought tile into DB.
         console.log(post);
 
         connectionT.query('INSERT INTO ' + username +' SET ?',post, function (err, rows, fields) {
@@ -501,7 +501,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
                                var unixBuffer = UnixTime(); //temp probably FIXME
-                               var unixJson = { unixBuffer: unixBuffer.toString() };
+                               var unixJson = { unixBuffer: unixBuffer.toString() }
                                
 
 
