@@ -263,7 +263,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         connectionpool_tiles.getConnection(function (err, connection) {
 
 
-            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
+            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
             if (err) throw err;
         });
 
@@ -444,13 +444,6 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
        socket.on("VERIFY_COLLECT_TILE", function (data) {
 
-     
-
-
-           //LEFTOFF: make this shit work. send back fruit delete request.
-
-
-
 
            var Uname = data.Uname;
            var tileID = data.TileID;
@@ -461,7 +454,6 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
            var tileProduceName;
            var tileProduceRandomRange1;
            var tileProduceRandomRange2;
-
 
 
            connectionpool_tiles.getConnection(function (err, connectionT){
@@ -503,9 +495,6 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                                var unixBuffer = UnixTime(); //temp probably FIXME
                                var unixJson = { unixBuffer: unixBuffer.toString() }
                                
-
-
-
                                connection.query('UPDATE inventories SET ' + tileProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                    if (err) throw err;
 
@@ -515,20 +504,14 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
                            });
                            
-              
-
-
+             
                            connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = '+UnixTime() +' WHERE ID = ' +tileID, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                if (err) throw err;
 
                            });
 
 
-
-
-
                        } else {
-
 
                            console.log("=====================harvest not allowed=======================");
                            //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
@@ -538,30 +521,115 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
                    });
 
-
-
                });
 
 
-
-        
 
                connectionT.release();
            });
 
 
 
-
            });
 
 
 
 
+       });
 
 
 
 
+       socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {  //kinda almost finished, needs testing. DO the work assignment and allign with this
+           //LEFTOFF: make work setter call.
 
+
+           var Uname = data.Uname;
+           var tileID = data.TileID;
+           var tileProgAmount;
+           var tileName;
+           var tileGrowthStart;
+           var tileWorkAmount;
+
+
+
+           connectionpool_tiles.getConnection(function (err, connectionT) {
+
+               connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+                   if (err) throw err;
+
+                   tileName = rows[0].NAME;
+                   tileGrowthStart = rows[0].START_OF_GROWTH;
+                   tileWorkAmount = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
+                   tileWorkName = rows[0].WORK_NAME;
+
+                   connectionpool.getConnection(function (err, connection) {
+
+                       connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+
+                           PressSpeed = rows[0].PROG_AMOUNT/100;
+
+                           PressProduceName = rows[0].TILEPRODUCENAME;
+                           PressEfficiency = rows[0].TILEPRODUCERANDOM1/100;
+                         
+
+
+
+                           var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed;   //FIXME: Number() because of varchar in MYSQL
+
+                           if (UnixTime() >= prog) {
+                               //Resetting tile progress and adding items to inventory
+
+                               var JuiceProduceAmount = tileWorkAmount*PressEfficiency; //randomized produce kiekis
+
+                               connection.query('SELECT ' + tileProduceName+tileWorkName + ' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                   if (err) throw err;
+
+
+                                   console.log(rows);
+                                   var newProduceAmount = rows[0][tileProduceName + tileWorkName] + Number(JuiceProduceAmount);
+
+
+
+                                   var unixBuffer = UnixTime(); //temp probably FIXME
+                                   var unixJson = { unixBuffer: unixBuffer.toString() }
+
+                                   connection.query('UPDATE inventories SET ' + tileProduceName + tileWorkName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                       if (err) throw err;
+
+                                   });
+                              
+                                   socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
+
+                               });
+
+
+                               connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = ' + UnixTime() + ' WHERE ID = ' + tileID, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                   if (err) throw err;
+
+                               });
+
+
+                           } else {
+
+                               console.log("=====================harvest not allowed=======================");
+                               //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
+
+
+                           }
+
+                       });
+
+                   });
+
+
+
+                   connectionT.release();
+               });
+
+
+
+           });
 
 
 
