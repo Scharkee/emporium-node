@@ -339,7 +339,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			DBdollars=rows[0].dollars;
 
-            console.log("user money in DB is = "+rows[0].dollars);
+          
         
         });
 	
@@ -348,13 +348,13 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			
 			DBBuildingPrice=rows[0].PRICE;
 
-            console.log("retrieved price for "+buildingname+" is "+DBBuildingPrice);
+          
 
 
          connectionpool_tiles.getConnection(function (err, connectionT){  //completely new connection fron tile connection pool for inserting into the tile table. 
 
         if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
-            console.log("enough money for tile. ");
+            
 
         TakeAwayMoney(DBdollars,DBBuildingPrice,username);
         
@@ -369,7 +369,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
         });
             
         }else{//not enough dollars to buy boi
-            console.log("not enough money for tile. ");
+           
             var missing = DBBuildingPrice-DBdollars;
             socket.emit("NO_FUNDS", {missing : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
             
@@ -377,17 +377,85 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
     });
 			connection.release();
         });
-		
         });
-
-
-
-
-
-
-
-
 	});
+
+
+
+
+
+	socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
+
+	    
+	    var Uname = data.Uname;
+	    var tileID = data.TileID;
+	    var assignedWorkName = data.WorkName;
+	    var assignedWorkAmmount = data.WorkAmount;
+	    var DBdollars;
+	    var DBBuildingPrice;
+	    var TileX = parseFloat(data.X);
+	    var TileZ = parseFloat(data.Z);
+
+	    connectionpool_tiles.getConnection(function (err, connectionT) {
+
+
+	        connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+	            if (err) throw err;
+
+
+	            tileCurrentWork = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
+
+	            if (tileCurrentWork != 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
+                    //send discrepency
+	            } else {
+
+
+	                connectionpool.getConnection(function (err, connection) {
+
+
+	                    connection.query('SELECT ? FROM inventories WHERE username = ' + "'" + Uname + "'",assignedWorkName, function (err, rows, fields) {
+	                        if (err) throw err;
+
+	                        console.log("lookin to get some juice from " + assignedWorkName);
+
+	                        if (rows[0][assignedWorkName] >= assignedWorkAmmount) {
+	                            //enough fruits for juice
+
+
+	                            connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = ' + UnixTime() + ' WHERE ID = ' + tileID, function (err, rows, fields) { // reset tile growth time
+	                                if (err) throw err;
+
+	                            });
+
+
+	                            connectionT.query('UPDATE ' + Uname + ' SET BUILDING_CURRENT_WORK_AMOUNT = ' + assignedWorkAmmount + ' WHERE ID = ' + tileID, function (err, rows, fields) { // nustatomas kiekis vaisiu kiek spaus
+	                                if (err) throw err;
+
+	                            });
+
+	                            connectionT.query('UPDATE ' + Uname + ' SET WORK_NAME = ' + assignedWorkName + ' WHERE ID = ' + tileID, function (err, rows, fields) { //update work name (spaudziami apelsinai ir t.t)
+	                                if (err) throw err;
+
+	                            });
+
+	                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount , currentWorkName:assignedWorkName , currentWorkAmmount:assignedWorkAmmount}); //cliente resettinamas tile growth.
+
+
+                                
+	                            connectionT.release();
+	                            connection.release();
+
+
+	                        }
+	                    });
+	                });
+	            }
+
+	        });
+	    });
+	});
+
+
 
     //FIXME: this shit here returns scientific number and not the real int.
 
@@ -542,6 +610,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
        socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {  //kinda almost finished, needs testing. DO the work assignment and allign with this
            //LEFTOFF: make work setter call.
+           //ALSO skaiciukas pakyla nuo medzio, kiek harvestinta KG vaisiu. 
 
 
            var Uname = data.Uname;
@@ -572,7 +641,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                            PressProduceName = rows[0].TILEPRODUCENAME;
                            PressEfficiency = rows[0].TILEPRODUCERANDOM1/100;
                          
-
+                           console.log(tileWorkName + "_" + PressProduceName)
 
 
                            var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed;   //FIXME: Number() because of varchar in MYSQL
@@ -580,21 +649,21 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                            if (UnixTime() >= prog) {
                                //Resetting tile progress and adding items to inventory
 
-                               var JuiceProduceAmount = tileWorkAmount*PressEfficiency; //randomized produce kiekis
+                               var JuiceProduceAmount = tileWorkAmount*PressEfficiency; 
 
-                               connection.query('SELECT ' + tileProduceName+tileWorkName + ' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                               connection.query('SELECT ' + tileWorkName+"_" + PressProduceName + ' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                    if (err) throw err;
 
 
                                    console.log(rows);
-                                   var newProduceAmount = rows[0][tileProduceName + tileWorkName] + Number(JuiceProduceAmount);
+                                   var newProduceAmount = rows[0][tileWorkName + "_" + PressProduceName] + Number(JuiceProduceAmount);
 
 
 
                                    var unixBuffer = UnixTime(); //temp probably FIXME
                                    var unixJson = { unixBuffer: unixBuffer.toString() }
 
-                                   connection.query('UPDATE inventories SET ' + tileProduceName + tileWorkName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                   connection.query('UPDATE inventories SET ' + tileWorkName + "_" + PressProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                        if (err) throw err;
 
                                    });
