@@ -463,7 +463,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 	socket.on("GET_UNIX", function (data) {
 	    var unixBuffer = UnixTime(); //temp probably
 	    console.log("sending back " + unixBuffer);
-	    var unixJson = { unixBuffer: unixBuffer.toString()};
+	    var unixJson = { unixBuffer: unixBuffer.toString() };
 	    console.log(unixJson);
 	    socket.emit("RECEIVE_UNIX", unixJson)
 	});
