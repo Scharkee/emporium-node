@@ -398,7 +398,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 	    connectionpool_tiles.getConnection(function (err, connectionT) {
 
-
+	        console.log("got yer");
 	        connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
 	            if (err) throw err;
 
@@ -406,14 +406,15 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 	            tileCurrentWork = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
 
 	            if (tileCurrentWork != 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
-                    //send discrepency
+	                //send discrepency
+
 	            } else {
 
 
 	                connectionpool.getConnection(function (err, connection) {
 
 
-	                    connection.query('SELECT ? FROM inventories WHERE username = ' + "'" + Uname + "'",assignedWorkName, function (err, rows, fields) {
+	                    connection.query('SELECT * FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) {
 	                        if (err) throw err;
 
 	                        console.log("lookin to get some juice from " + assignedWorkName);
@@ -438,7 +439,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 	                            });
 
-	                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount , currentWorkName:assignedWorkName , currentWorkAmmount:assignedWorkAmmount}); //cliente resettinamas tile growth.
+	                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
 
 
                                 
@@ -568,7 +569,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
                                });
                                console.log(newProduceAmount);
-                               socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
+                               socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
 
                            });
                            
@@ -619,7 +620,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
            var tileName;
            var tileGrowthStart;
            var tileWorkAmount;
-
+           
 
 
            connectionpool_tiles.getConnection(function (err, connectionT) {
@@ -661,7 +662,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
                                    var unixBuffer = UnixTime(); //temp probably FIXME
-                                   var unixJson = { unixBuffer: unixBuffer.toString() }
+                                   
 
                                    connection.query('UPDATE inventories SET ' + tileWorkName + "_" + PressProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                        if (err) throw err;
@@ -671,12 +672,17 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
 
                                });
+                               var post = {BUILDING_CURRENT_WORK_AMOUNT:0 , WORK_NAME:"nieko", START_OF_GROWTH:0};
 
-
-                               connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = ' + UnixTime() + ' WHERE ID = ' + tileID, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                               connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) { // resetinam progresa
                                    if (err) throw err;
 
                                });
+
+
+
+
+                      
 
 
                            } else {
