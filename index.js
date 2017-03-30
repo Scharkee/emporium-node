@@ -393,12 +393,16 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 	    var assignedWorkAmmount = data.WorkAmount;
 	    var DBdollars;
 	    var DBBuildingPrice;
-	    var TileX = parseFloat(data.X);
-	    var TileZ = parseFloat(data.Z);
+
+
+	    console.log(data.Uname);
+	    console.log(data.TileID);
+	    console.log(data.WorkName);
+	    console.log(data.WorkAmount);
 
 	    connectionpool_tiles.getConnection(function (err, connectionT) {
 
-	        console.log("got yer");
+	        
 	        connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
 	            if (err) throw err;
 
@@ -420,26 +424,19 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 	                        console.log("lookin to get some juice from " + assignedWorkName);
 
 	                        if (rows[0][assignedWorkName] >= assignedWorkAmmount) {
-	                            //enough fruits for juice
 
+	                            console.log(rows[0][assignedWorkName]);
 
-	                            connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = ' + UnixTime() + ' WHERE ID = ' + tileID, function (err, rows, fields) { // reset tile growth time
+	                            var post = {START_OF_GROWTH : UnixTime(), BUILDING_CURRENT_WORK_AMOUNT:assignedWorkAmmount, WORK_NAME: assignedWorkName};
+	                            connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID,post, function (err, rows, fields) { // reset tile growth time
 	                                if (err) throw err;
+
+	                                console.log("im out?");
 
 	                            });
 
 
-	                            connectionT.query('UPDATE ' + Uname + ' SET BUILDING_CURRENT_WORK_AMOUNT = ' + assignedWorkAmmount + ' WHERE ID = ' + tileID, function (err, rows, fields) { // nustatomas kiekis vaisiu kiek spaus
-	                                if (err) throw err;
-
-	                            });
-
-	                            connectionT.query('UPDATE ' + Uname + ' SET WORK_NAME = ' + assignedWorkName + ' WHERE ID = ' + tileID, function (err, rows, fields) { //update work name (spaudziami apelsinai ir t.t)
-	                                if (err) throw err;
-
-	                            });
-
-	                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
+	                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
 
 
                                 
@@ -463,9 +460,9 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 	socket.on("GET_UNIX", function (data) {
 	    var unixBuffer = UnixTime(); //temp probably
-	    console.log("sending back " + unixBuffer);
+	    
 	    var unixJson = { unixBuffer: unixBuffer.toString() };
-	    console.log(unixJson);
+	    
 	    socket.emit("RECEIVE_UNIX", unixJson)
 	});
 
@@ -661,15 +658,13 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
 
-                                   var unixBuffer = UnixTime(); //temp probably FIXME
-                                   
 
                                    connection.query('UPDATE inventories SET ' + tileWorkName + "_" + PressProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                        if (err) throw err;
 
                                    });
                               
-                                   socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: unixJson, currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
+                                   socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime(), currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
 
                                });
                                var post = {BUILDING_CURRENT_WORK_AMOUNT:0 , WORK_NAME:"nieko", START_OF_GROWTH:0};
