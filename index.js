@@ -663,11 +663,12 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                                        if (err) throw err;
 
                                    });
+                                   console.log("sent out command to client");
                               
                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime(), currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
 
                                });
-                               var post = {BUILDING_CURRENT_WORK_AMOUNT:0 , WORK_NAME:"nieko", START_OF_GROWTH:0};
+                               var post = {BUILDING_CURRENT_WORK_AMOUNT:0 , WORK_NAME:"", START_OF_GROWTH:0};
 
                                connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) { // resetinam progresa
                                    if (err) throw err;
