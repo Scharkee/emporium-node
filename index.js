@@ -179,15 +179,16 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
                 if (!rows.length) {//if DB finds no matches for username, create stats for that username.
                    
                     console.log("Creating default user stats for: "+username);
-                    socket.emit("RETRIEVE_STATS", { dollars: 100, plotsize: 3, lastonline: UnixTime() });
+                    socket.emit("RETRIEVE_STATS", { dollars: 100, plotsize: 3, lastonline: UnixTime(), firstPlay: true });
 
                     InsertDefaultStats(username, 100, UnixTime(), 3);
+
 					
                 } else {//if DB finds matches for username, fuckeen get em.
 
                     var lastonlinestring = rows[0].lastonline.toString();
 
-                    socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: lastonlinestring });
+                    socket.emit("RETRIEVE_STATS", { dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: lastonlinestring, firstPlay:false });
                
         
 					
@@ -353,7 +354,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
          connectionpool_tiles.getConnection(function (err, connectionT){  //completely new connection fron tile connection pool for inserting into the tile table. 
 
-        if(DBdollars>DBBuildingPrice){//tile bought cuz enough money.
+        if(DBdollars>=DBBuildingPrice){//tile bought cuz enough money.
             
 
         TakeAwayMoney(DBdollars,DBBuildingPrice,username);
@@ -363,6 +364,7 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         connectionT.query('INSERT INTO ' + username +' SET ?',post, function (err, rows, fields) {
             if (err) throw err;
+
              socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  
   
             connectionT.release();
@@ -378,6 +380,54 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 			connection.release();
         });
         });
+	});
+
+
+
+
+	socket.on("SELL_TILE", function (data) {//tile purchase function
+
+	    var username = data.Uname;
+	    var SellTileID = parseInt(data.SellTileID);
+	    var buildingName=data.TileName;
+
+	    console.log(username);
+	  
+
+	    connectionpool.getConnection(function (err, connection) {
+
+	     
+
+	
+
+	        connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingName + "'", function (err, rows, fields) {
+	            if (err) throw err;
+
+	            DBBuildingPrice = rows[0].PRICE;
+
+
+	            connectionpool_tiles.getConnection(function (err, connectionT) {  //completely new connection fron tile connection pool for inserting into the tile table. 
+
+	              
+
+	                    AddMoney(DBBuildingPrice/4, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
+
+	         
+
+	                    connectionT.query('DELETE FROM ' + username + ' WHERE ID = ?', SellTileID, function (err, rows, fields) {
+	                        if (err) throw err;
+
+	            
+	                        socket.emit("ADD_FUNDS", { addFunds: DBBuildingPrice / 4});
+
+	                        connectionT.release();
+	                    });
+
+	               
+	            });
+	            connection.release();
+	        });
+	    });
 	});
 
 
@@ -474,36 +524,6 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
 
-       socket.on("VERIFY_BUY_UPGRADE", function(data){//data includes what is being bought, and i get price from table from DB. ALSO load all prices from table from DB @ start of game.
-
-         console.log("Client No. " + clientCount.indexOf(socket) +" is buying something"); //add upgrade name to console.log
-
-
-        connectionpool_tiles.getConnection(function (err, connectionT){  //completely new connection fron tile connection pool for inserting into the tile table. 
-
-            if (DBdollars > DBBuildingPrice) {//tile bought cuz enough money.
-
-            console.log("Enough dollars to upgrade. ");
-            TakeAwayMoney(DBdollars,DBBuildingPrice,username);
-            var post = { NAME: buildingname, COUNT: 0, X: TileX, Z: TileZ, FERTILISED_UNTIL: 0 };   // mathced querry , match up with tile tables for inserting  bought tile into DB.
-
-            connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
-
-            if (err) throw err;
-             socket.emit("BUILD_TILE", {TileName: buildingname, TileX :TileX, TileZ: TileZ});  //implement into unity   //gal but idet cia dar ir progress + fertilised, jei reiktu netycia
-
-            connectionT.release();
-        });
-            
-        }else{//not enough dollars to buy boi
-            console.log("not enough money for tile. ");
-            var missing = DBBuildingPrice-DBdollars;
-            socket.emit("NOT_ENOUGH", {item : "money" , missing  : missing});   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing)
-            
-        }
-    });
-
-       });
 
 
 
@@ -606,8 +626,8 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
 
 
-       socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {  //kinda almost finished, needs testing. DO the work assignment and allign with this
-           //LEFTOFF: make work setter call.
+       socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) { 
+          
            //ALSO skaiciukas pakyla nuo medzio, kiek harvestinta KG vaisiu. 
 
 
@@ -709,7 +729,52 @@ socket.emit("connectedToNode", {ConnectedOnceNoDupeStatRequests: true});
 
         socket.on("VERIFY_EXPAND_PLOTSIZE", function(data){//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
-         console.log("Client No. " + clientCount.indexOf(socket) +" is upgrading his plotsize "); //add from what plotsize to what plotsize later
+            console.log("Client No. " + clientCount.indexOf(socket) + " is upgrading his plotsize "); //add from what plotsize to what plotsize later
+
+
+
+            var username = data.Uname;
+            var DBdollars;
+            var currentPlotsize;
+
+            console.log(username);
+
+
+            connectionpool.getConnection(function (err, connection) {
+
+                connection.query('SELECT * FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+                if (err) throw err;
+
+                DBdollars = rows[0].dollars;
+                currentPlotsize = rows[0].plotsize;
+
+                if (DBdollars >= Math.pow(10, currentPlotsize - 1)) { //uztenka praplesti plotui
+
+                    post = {plotsize:currentPlotsize+1};
+                    connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'",post, function (err, rows, fields) {
+                        if (err) throw err;
+
+
+
+
+                    });
+
+                    socket.emit("UPDATE_PLOT_SIZE", { newplot: currentPlotsize + 1 });
+
+                } else {
+                    var missing = Math.pow(10, currentPlotsize - 1) - DBdollars;
+                    socket.emit("NO_FUNDS", { missing: missing });
+
+
+
+                }
+            });
+
+
+
+
+
+            });
 
     });
 	
@@ -819,6 +884,32 @@ function TakeAwayMoney(money,lostmoney,username){
             if (err) throw err;
             
         });
+    });
+}
+
+
+function AddMoney(addedmoney, username) {
+
+    connectionpool.getConnection(function (err, connection) {
+
+        connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+            if (err) throw err;
+
+
+            var DBdollars = rows[0].dollars;
+            var newmoney = DBdollars + addedmoney;
+            var post = { dollars: newmoney }
+
+
+            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+                if (err) throw err;
+
+            });
+
+
+
+        });
+
     });
 }
 
