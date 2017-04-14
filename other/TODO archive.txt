@@ -1,0 +1,5 @@
+
+    //TODO: admin panel, maybe even new column in STATS(for admins), only show button for admin panel for admins.
+    //TODO: in-game currency and plotsize adjustment buttons that emit verifications. Make them work and we got a noic working skeleton there.
+    //TODO: establish lastlogged auto sender to start pushing unix times to DB
+    //TODO: first recalculation of lost time when user was offline(using lastonline). And relaying that to the game. Place temporary text in game for how much time was lost(DEBUG)
