@@ -10,6 +10,7 @@ app.set('port', 2333);
 var clients = [];
 const saltRounds = 10;
 
+var async = require('async');
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
 
@@ -428,10 +429,7 @@ io.on("connection", function (socket) {
         var DBBuildingPrice;
 
 
-        console.log(data.Uname);
-        console.log(data.TileID);
-        console.log(data.WorkName);
-        console.log(data.WorkAmount);
+     
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
 
@@ -481,6 +479,112 @@ io.on("connection", function (socket) {
             connectionT.release();
         });
         
+    });
+
+
+
+    socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
+
+
+        var Uname = data.Uname;               //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
+                                             // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
+                                             //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
+                                               //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB.h
+        var salesNum = data.salesNum;
+        var DBdollars;
+        var rowsPricings;
+        var post = {};
+        var postMoney = {};
+
+
+        
+        connectionpool.getConnection(function (err, connection) {
+
+            //waterfall this shit
+
+            console.log(Uname);
+
+           
+
+            connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
+                if (err) throw err;
+
+                rowsPricings = rowsP;
+
+
+
+                //waterfall this shit
+
+                connection.query('SELECT * FROM stats WHERE username = ' + "'" + Uname + "'", function (err, rowsM, fields) { //getting dollars for adding money later
+                    if (err) throw err;
+              
+                    postMoney = rowsM[0];
+
+
+
+                    //check if rowsPrices are still accessible here. Might be only available in the callback.
+
+                    connection.query('SELECT * FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) {
+                        if (err) throw err;
+
+
+                        for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
+
+            
+                            console.log("lookin to sell " + data[i + "amount"] + " of " + data[i + "name"]);    //check if tis notation works 1name, 1amount, 2name, 2amount....
+
+                            if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
+
+                                socket.emit("DISCREPANCY", { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 }); //implement into client
+
+                            } else {// viskas probs OK, sale allowed.
+
+
+                                post[(data[i.toString() + "name"]).toString()] = Number(rows[0][data[i + "name"]]) -   Number( data[i + "amount"]); // naujas amountas paruosiamas postui i database. 
+
+                                postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir 
+                                //paciam sale screen.( $/per kilograma)
+
+
+                            }
+                        }
+
+
+                        connection.query('UPDATE inventories SET ? WHERE username = ' + "'" + Uname + "'", post, function (err, rows, fields) {
+                            if (err) throw err;
+
+
+
+                            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + Uname + "'", postMoney, function (err, rowsM, fields) { //adding all the monay
+                                if (err) throw err;
+
+                                socket.emit("SALE_VERIFICATION", postMoney);
+
+                            });
+
+                        });
+
+                    });
+
+                    //WATERFALL (cia final save functions jei viskas pavyko)
+
+
+
+                    //WATERFALL (cia final save functions jei viskas pavyko)
+
+                });
+
+               
+            });
+
+  
+
+
+        
+
+            connection.release();
+        });
+
     });
 
 
@@ -704,10 +808,6 @@ io.on("connection", function (socket) {
 
 
 
-
-
-
-
                         } else {
 
                             console.log("=====================harvest not allowed=======================");
@@ -818,11 +918,16 @@ io.on("connection", function (socket) {
     socket.on("disconnect", function (data) {
 
 
-        console.log("user  " + currentConnections[socket.id].name + " dc'd"); // removing client from clientlist
+        console.log("user  " + currentConnections[socket.id].name + " dc'd");
 
+        if (currentConnections[socket.id].name) { //should push lastloggeds of anyONE connected. Kai neuzregisruojamas vardas(undefined), tai 
+            //fake prisijugimas ir bandymas issaugot MYSQL uzlaus serveri. Nepushinam tada.
 
-        clientCount.splice(clientCount.indexOf(socket), 1);
+            UpdateLastloggedIn(currentConnections[socket.id].name);
 
+        }
+
+        clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
         delete currentConnections[socket.id];
 
     });
@@ -944,6 +1049,22 @@ function TakeAwayItem(item, amount, username) {
     });
 }
 
+
+function UpdateLastloggedIn(username) {
+
+    connectionpool.getConnection(function (err, connection) {
+
+        var post = { lastonline: UnixTime() };
+        connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+            if (err) throw err;
+
+        });
+
+        connection.release();
+    });
+}
+
+
 // check if enough isnt working FINDAWAY (escapes from callback hell)
 
 
@@ -961,6 +1082,20 @@ function findValue(o, value) {
         }
     }
     return null;
+}
+
+function findPrice(rows, name){
+    var price;
+    var current = 0;
+
+    while(rows[current].NAME!= name){
+        current++;
+    }
+
+    price = rows[current].PRICE;
+
+
+    return price;
 }
 
 
