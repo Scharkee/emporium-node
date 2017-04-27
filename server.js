@@ -206,7 +206,7 @@ io.on("connection", function (socket) {
 
 
                 }
-                
+
 
 
 
@@ -244,7 +244,7 @@ io.on("connection", function (socket) {
 
 
 
-               
+
 
             });
             connection.release();
@@ -297,7 +297,7 @@ io.on("connection", function (socket) {
                 }
 
 
-                
+
 
 
 
@@ -352,7 +352,7 @@ io.on("connection", function (socket) {
 
                             socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ });
 
-                           
+
                         });
 
                     } else {//not enough dollars to buy boi
@@ -363,7 +363,7 @@ io.on("connection", function (socket) {
                     }
                     connectionT.release();
                 });
-                
+
             });
             connection.release();
         });
@@ -403,12 +403,12 @@ io.on("connection", function (socket) {
 
                         socket.emit("ADD_FUNDS", { addFunds: DBBuildingPrice / 4 });
 
-                        
+
                     });
 
                     connectionT.release();
                 });
-              
+
             });
             connection.release();
         });
@@ -429,7 +429,7 @@ io.on("connection", function (socket) {
         var DBBuildingPrice;
 
 
-     
+
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
 
@@ -478,7 +478,7 @@ io.on("connection", function (socket) {
             });
             connectionT.release();
         });
-        
+
     });
 
 
@@ -487,9 +487,9 @@ io.on("connection", function (socket) {
 
 
         var Uname = data.Uname;               //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
-                                             // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
-                                             //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
-                                               //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB.h
+        // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
+        //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
+        //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB.h
         var salesNum = data.salesNum;
         var DBdollars;
         var rowsPricings;
@@ -497,14 +497,14 @@ io.on("connection", function (socket) {
         var postMoney = {};
 
 
-        
+
         connectionpool.getConnection(function (err, connection) {
 
             //waterfall this shit
 
             console.log(Uname);
 
-           
+
 
             connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
                 if (err) throw err;
@@ -517,7 +517,7 @@ io.on("connection", function (socket) {
 
                 connection.query('SELECT * FROM stats WHERE username = ' + "'" + Uname + "'", function (err, rowsM, fields) { //getting dollars for adding money later
                     if (err) throw err;
-              
+
                     postMoney = rowsM[0];
 
 
@@ -530,7 +530,7 @@ io.on("connection", function (socket) {
 
                         for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
 
-            
+
                             console.log("lookin to sell " + data[i + "amount"] + " of " + data[i + "name"]);    //check if tis notation works 1name, 1amount, 2name, 2amount....
 
                             if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
@@ -540,7 +540,7 @@ io.on("connection", function (socket) {
                             } else {// viskas probs OK, sale allowed.
 
 
-                                post[(data[i.toString() + "name"]).toString()] = Number(rows[0][data[i + "name"]]) -   Number( data[i + "amount"]); // naujas amountas paruosiamas postui i database. 
+                                post[data[i.toString() + "name"].toString()] = Number(rows[0][data[i + "name"]]) - Number(data[i + "amount"]); // naujas amountas paruosiamas postui i database. 
 
                                 postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir 
                                 //paciam sale screen.( $/per kilograma)
@@ -574,13 +574,13 @@ io.on("connection", function (socket) {
 
                 });
 
-               
+
             });
 
-  
 
 
-        
+
+
 
             connection.release();
         });
@@ -822,7 +822,7 @@ io.on("connection", function (socket) {
 
 
 
-                
+
             });
 
             connectionT.release();
@@ -954,7 +954,7 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 
         connection.query('INSERT INTO inventories SET ?', postInventories, function (err, rows, fields) {
             if (err) throw err;
-           
+
         });
         connection.release();
     });
@@ -1084,11 +1084,11 @@ function findValue(o, value) {
     return null;
 }
 
-function findPrice(rows, name){
+function findPrice(rows, name) {
     var price;
     var current = 0;
 
-    while(rows[current].NAME!= name){
+    while (rows[current].NAME !== name) {
         current++;
     }
 
