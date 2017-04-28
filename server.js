@@ -4,6 +4,9 @@ var shortId = require('shortid');
 var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 var Chance = require('chance');
+var webhandler = require('./webhandler.js'); 
+
+app.use('/webH', webhandler); 
 
 app.set('port', 2333);
 
@@ -317,9 +320,18 @@ io.on("connection", function (socket) {
         var DBBuildingPrice;
         var TileX = parseFloat(data.X);
         var TileZ = parseFloat(data.Z);
+        var tilecount = data.TileCount;
+        var tileID;
+        var count=1;
+
+        try{
+            tileID = data.tileID;
+        }catch(err){
+            console.log("tile doesnt exist");
+        }
 
         connectionpool.getConnection(function (err, connection) {
-
+            connectionpool_tiles.getConnection(function (err, connectionT) {
 
             connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
                 if (err) throw err;
@@ -337,20 +349,23 @@ io.on("connection", function (socket) {
                 DBBuildingPrice = rows[0].PRICE;
 
 
-                connectionpool_tiles.getConnection(function (err, connectionT) {  //completely new connection fron tile connection pool for inserting into the tile table. 
+
+                if (tileID===undefined) {//tile nera.
+
+                    console.log("tile nera");
 
                     if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
 
 
                         TakeAwayMoney(DBdollars, DBBuildingPrice, username);
 
-                        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0 };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+                        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
                         console.log(post);
 
                         connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
                             if (err) throw err;
 
-                            socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ });
+                            socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ, Count: count });
 
 
                         });
@@ -361,6 +376,55 @@ io.on("connection", function (socket) {
                         socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
 
                     }
+
+
+                } else {//upgradinamas tile.
+
+                    connectionT.query('SELECT * FROM ' + username + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+                        if (err) throw err;
+
+                        count = rows[0].COUNT;
+
+                        if (count === 5) {
+                            console.log("tile at max upgrades");
+
+                        } else {//proceed with the upgrade
+                            console.log("upgrading");
+
+                            
+                            count++;
+
+
+                            if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
+
+
+                                TakeAwayMoney(DBdollars, DBBuildingPrice, username);
+
+                                var post = {COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+                                console.log(post);
+
+                                connectionT.query('UPDATE ' + username + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) {
+                                    if (err) throw err;
+
+                                    socket.emit("UPGRADE_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ });
+
+
+                                });
+
+                            } else {//not enough dollars to buy boi
+
+                                var missing = DBBuildingPrice - DBdollars;
+                                socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
+
+                            }
+                        }
+
+                    });
+
+                }
+
+
+        
                     connectionT.release();
                 });
 
@@ -936,6 +1000,12 @@ io.on("connection", function (socket) {
 
 
 });//iserts default stats into DB when user first starts the game,
+
+
+
+
+
+
 function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 
     var post = { username: username, dollars: dollars, lastonline: lastonline, plotsize: plotsize };
