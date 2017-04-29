@@ -4,9 +4,9 @@ var shortId = require('shortid');
 var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 var Chance = require('chance');
-var webhandler = require('./webhandler.js'); 
+var webhandler = require('./webhandler.js');
 
-app.use('/webH', webhandler); 
+app.use('/webH', webhandler);
 
 app.set('port', 2333);
 
@@ -322,109 +322,112 @@ io.on("connection", function (socket) {
         var TileZ = parseFloat(data.Z);
         var tilecount = data.TileCount;
         var tileID;
-        var count=1;
+        var count = 1;
 
-        try{
+        try {
             tileID = data.tileID;
-        }catch(err){
+        } catch (err) {
             console.log("tile doesnt exist");
         }
 
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
 
-            connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
-                if (err) throw err;
+                connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+                    if (err) throw err;
 
 
-                DBdollars = rows[0].dollars;
-
-
-
-            });
-
-            connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
-                if (err) throw err;
-
-                DBBuildingPrice = rows[0].PRICE;
+                    DBdollars = rows[0].dollars;
 
 
 
-                if (tileID===undefined) {//tile nera.
+                });
 
-                    console.log("tile nera");
+                connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
+                    if (err) throw err;
 
-                    if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
+                    DBBuildingPrice = rows[0].PRICE;
 
 
-                        TakeAwayMoney(DBdollars, DBBuildingPrice, username);
 
-                        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
-                        console.log(post);
+                    if (tileID === undefined) {//tile nera.
 
-                        connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
+                        console.log("tile nera");
+
+                        if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
+
+
+                            TakeAwayMoney(DBdollars, DBBuildingPrice, username);
+
+                            var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+                            console.log(post);
+
+                            connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
+                                if (err) throw err;
+
+               
+                                
+                                socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId });
+
+                                
+                            });
+
+                        } else {//not enough dollars to buy boi
+
+                            var missing = DBBuildingPrice - DBdollars;
+                            socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
+
+                        }
+
+
+                    } else {//upgradinamas tile.
+
+                        connectionT.query('SELECT * FROM ' + username + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
                             if (err) throw err;
 
-                            socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ, Count: count });
+                            count = rows[0].COUNT;
 
+                            if (count === 5) {
+                                console.log("tile at max upgrades");
+
+                            } else {//proceed with the upgrade
+                                console.log("upgrading");
+
+
+                                count++;
+
+
+                                if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
+
+
+                                    TakeAwayMoney(DBdollars, DBBuildingPrice, username);
+
+                                    var post = { COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+                                    console.log(post);
+
+                                    connectionT.query('UPDATE ' + username + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) {
+                                        if (err) throw err;
+
+                                        console.log({ tileID: tileID });
+                                        socket.emit("UPGRADE_TILE", { tileID:Number(tileID) });
+                                        console.log(tileID);
+
+                                    });
+
+                                } else {//not enough dollars to buy boi
+
+                                    var missing = DBBuildingPrice - DBdollars;
+                                    socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
+
+                                }
+                            }
 
                         });
-
-                    } else {//not enough dollars to buy boi
-
-                        var missing = DBBuildingPrice - DBdollars;
-                        socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
 
                     }
 
 
-                } else {//upgradinamas tile.
 
-                    connectionT.query('SELECT * FROM ' + username + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
-                        if (err) throw err;
-
-                        count = rows[0].COUNT;
-
-                        if (count === 5) {
-                            console.log("tile at max upgrades");
-
-                        } else {//proceed with the upgrade
-                            console.log("upgrading");
-
-                            
-                            count++;
-
-
-                            if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
-
-
-                                TakeAwayMoney(DBdollars, DBBuildingPrice, username);
-
-                                var post = {COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
-                                console.log(post);
-
-                                connectionT.query('UPDATE ' + username + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) {
-                                    if (err) throw err;
-
-                                    socket.emit("UPGRADE_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ });
-
-
-                                });
-
-                            } else {//not enough dollars to buy boi
-
-                                var missing = DBBuildingPrice - DBdollars;
-                                socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
-
-                            }
-                        }
-
-                    });
-
-                }
-
-
-        
                     connectionT.release();
                 });
 
@@ -523,13 +526,19 @@ io.on("connection", function (socket) {
                                 console.log(rows[0][assignedWorkName]);
 
                                 var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
+
                                 connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) { // reset tile growth time
                                     if (err) throw err;
 
-                                    console.log("im out?");
-
                                 });
 
+               
+
+                                console.log("asking for "+assignedWorkName+", ammount: "+assignedWorkAmmount+", uname is "+Uname);
+
+                                TakeAwayItem(assignedWorkName, assignedWorkAmmount, Uname);
+
+                      
 
                                 socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
 
@@ -599,6 +608,7 @@ io.on("connection", function (socket) {
 
                             if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
 
+                                console.log(data[i + "name"]);
                                 socket.emit("DISCREPANCY", { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 }); //implement into client
 
                             } else {// viskas probs OK, sale allowed.
@@ -736,7 +746,7 @@ io.on("connection", function (socket) {
 
 
                                 console.log(rows);
-                                var newProduceAmount = rows[0][tileProduceName] + Number(randProduce)*tileCount;
+                                var newProduceAmount = rows[0][tileProduceName] + Number(randProduce) * tileCount;
 
 
 
@@ -757,7 +767,7 @@ io.on("connection", function (socket) {
                                     });
 
                                 } else {
-                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce)*tileCount }); //cliente resettinamas tile growth.
+                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce) * tileCount }); //cliente resettinamas tile growth.
 
 
                                 }
@@ -1004,8 +1014,6 @@ io.on("connection", function (socket) {
 
 
 
-
-
 function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 
     var post = { username: username, dollars: dollars, lastonline: lastonline, plotsize: plotsize };
@@ -1099,16 +1107,23 @@ function TakeAwayItem(item, amount, username) {
 
     connectionpool.getConnection(function (err, connection) {
 
-        connection.query('SELECT ?? FROM stats WHERE username = ' + "'" + username + "'", item, function (err, rows, fields) {
+        connection.query('SELECT * FROM inventories WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
             if (err) throw err;
 
+   
+
+
             var remaining = rows[0][item] - amount;
-            var post = { item: remaining };//FIXME
+            var post = {};
+            post[item] = remaining;//FIXME
+
             console.log(post);
 
 
-            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+            connection.query('UPDATE inventories SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
                 if (err) throw err;
+
+          
 
             });
 
