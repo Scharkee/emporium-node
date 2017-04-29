@@ -696,6 +696,7 @@ io.on("connection", function (socket) {
         var tileName;
         var tileGrowthStart;
         var singleUse;
+        var tileCount;
 
         var tileProduceName;
         var tileProduceRandomRange1;
@@ -709,7 +710,7 @@ io.on("connection", function (socket) {
 
                 tileName = rows[0].NAME;
                 tileGrowthStart = rows[0].START_OF_GROWTH;
-
+                tileCount = rows[0].COUNT;
 
                 connectionpool.getConnection(function (err, connection) {
 
@@ -735,7 +736,7 @@ io.on("connection", function (socket) {
 
 
                                 console.log(rows);
-                                var newProduceAmount = rows[0][tileProduceName] + Number(randProduce);
+                                var newProduceAmount = rows[0][tileProduceName] + Number(randProduce)*tileCount;
 
 
 
@@ -756,7 +757,7 @@ io.on("connection", function (socket) {
                                     });
 
                                 } else {
-                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce) }); //cliente resettinamas tile growth.
+                                    socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce)*tileCount }); //cliente resettinamas tile growth.
 
 
                                 }
@@ -916,7 +917,6 @@ io.on("connection", function (socket) {
             connection.query('SELECT * FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
                 if (err) throw err;
 
-                console.log("IM HERE");
                 DBdollars = rows[0].dollars;
                 currentPlotsize = rows[0].plotsize;
                 console.log(DBdollars + " vs " + Math.pow(10, currentPlotsize));
