@@ -69,8 +69,8 @@ io.on("connection", function (socket) {
 
         if (userpass !== data.Upass || username !== data.Uname) {
             console.log("someone's injecting input or bug in InputField.");
-            //cast discrepancy
-        }
+          //   socket.emit("DISCREPANCY", { reasonString: "Discrepancy detected in input. Please try again. Shutting off...", action: 1 });   gamealerts on login screen dont work i dont think;
+      }
 
 
         if (findValue(currentConnections[socket.id], username)) { //NEEDS TESTING.
@@ -81,7 +81,6 @@ io.on("connection", function (socket) {
 
         } else {//let the login through
 
-            console.log("u good, come through");
 
         }
 
@@ -177,7 +176,7 @@ io.on("connection", function (socket) {
 
         connectionpool.getConnection(function (err, connection) {
             // Use the connection
-            connection.query('SELECT * FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+            connection.query('SELECT * FROM stats WHERE username = ?',username, function (err, rows, fields) {
 
                 if (err) throw err;
 
@@ -257,27 +256,29 @@ io.on("connection", function (socket) {
 
     socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
 
-
-        connectionpool.getConnection(function (err, connection) {
-
-
-            connection.query('SELECT * FROM buildings', function (err, rows, fields) {
-                if (err) throw err;
+     var username = data.Uname;
 
 
-                socket.emit("RECEIVE_TILE_INFORMATION", { rows });
+     connectionpool.getConnection(function (err, connection) {
+
+
+        connection.query('SELECT * FROM buildings', function (err, rows, fields) {
+            if (err) throw err;
+
+
+            socket.emit("RECEIVE_TILE_INFORMATION", { rows });
 
 
 
 
-            });
+        });
 
 
             //ALSO GETS INVENTORY FOR PLAYER
 
 
 
-            connection.query('SELECT * FROM inventories WHERE username = ' + "'" + data.Uname + "'", function (err, rows, fields) {
+            connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) {
                 if (err) throw err;
 
                 if (!rows.length) { //should never happen technically
@@ -287,7 +288,7 @@ io.on("connection", function (socket) {
                     connection.query('INSERT INTO inventories SET ?', post, function (err, rows, fields) {
                         if (err) throw err;
 
-                        connection.query('SELECT * FROM inventories WHERE username = ' + "'" + data.Uname + "'", function (err, rows, fields) {
+                        connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) {
                             if (err) throw err;
 
                             socket.emit("RECEIVE_INVENTORY", { rows });
@@ -308,7 +309,7 @@ io.on("connection", function (socket) {
             connection.release();
 
         });
-    });
+ });
 
 
 
@@ -333,7 +334,7 @@ io.on("connection", function (socket) {
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
 
-                connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+                connection.query('SELECT dollars FROM stats WHERE username = ?',username, function (err, rows, fields) {
                     if (err) throw err;
 
 
@@ -343,7 +344,7 @@ io.on("connection", function (socket) {
 
                 });
 
-                connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingname + "'", function (err, rows, fields) {
+                connection.query('SELECT PRICE FROM buildings WHERE NAME = ?',buildingname, function (err, rows, fields) {
                     if (err) throw err;
 
                     DBBuildingPrice = rows[0].PRICE;
@@ -365,7 +366,7 @@ io.on("connection", function (socket) {
                             connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
                                 if (err) throw err;
 
-               
+                                
                                 
                                 socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId });
 
@@ -381,8 +382,10 @@ io.on("connection", function (socket) {
 
 
                     } else {//upgradinamas tile.
+                        console.log(username+" is the username");
 
-                        connectionT.query('SELECT * FROM ' + username + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+                        
+                        connectionT.query('SELECT * FROM ?? WHERE ID = ?',[username,Number(tileID)], function (err, rows, fields) {
                             if (err) throw err;
 
                             count = rows[0].COUNT;
@@ -405,7 +408,7 @@ io.on("connection", function (socket) {
                                     var post = { COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
                                     console.log(post);
 
-                                    connectionT.query('UPDATE ' + username + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) {
+                                    connectionT.query('UPDATE ?? SET ? WHERE ID = ?',[username,post,tileID] , function (err, rows, fields) {
                                         if (err) throw err;
 
                                         console.log({ tileID: tileID });
@@ -434,7 +437,7 @@ io.on("connection", function (socket) {
             });
             connection.release();
         });
-    });
+});
 
 
     socket.on("SELL_TILE", function (data) {//tile purchase function
@@ -443,14 +446,13 @@ io.on("connection", function (socket) {
         var SellTileID = parseInt(data.SellTileID);
         var buildingName = data.TileName;
 
-        console.log(username);
-
+        var count;
 
         connectionpool.getConnection(function (err, connection) {
 
 
 
-            connection.query('SELECT PRICE FROM buildings WHERE NAME = ' + "'" + buildingName + "'", function (err, rows, fields) {
+            connection.query('SELECT PRICE FROM buildings WHERE NAME = ?',buildingName, function (err, rows, fields) {
                 if (err) throw err;
 
                 DBBuildingPrice = rows[0].PRICE;
@@ -459,19 +461,29 @@ io.on("connection", function (socket) {
                 connectionpool_tiles.getConnection(function (err, connectionT) {  //completely new connection fron tile connection pool for inserting into the tile table. 
 
 
-
-                    AddMoney(DBBuildingPrice / 4, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
-
-
-
-                    connectionT.query('DELETE FROM ' + username + ' WHERE ID = ?', SellTileID, function (err, rows, fields) {
+                    connectionT.query('SELECT * FROM ?? WHERE ID = ?',[username,SellTileID] , function (err, rows, fields) {
                         if (err) throw err;
 
 
-                        socket.emit("ADD_FUNDS", { addFunds: DBBuildingPrice / 4 });
+                        count=rows[0].COUNT;
+
+
+                        
+                        connectionT.query('DELETE FROM ?? WHERE ID = ?',[username,SellTileID] , function (err, rows, fields) {
+                            if (err) throw err;
+
+
+                            socket.emit("ADD_FUNDS", { addFunds: (DBBuildingPrice / 4 )*count});
+                        AddMoney((DBBuildingPrice / 4)*count, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
 
 
                     });
+
+
+                    });
+
+
+
 
                     connectionT.release();
                 });
@@ -488,7 +500,7 @@ io.on("connection", function (socket) {
     socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
 
 
-        var Uname = data.Uname;
+        var username = data.Uname;
         var tileID = data.TileID;
         var assignedWorkName = data.WorkName;
         var assignedWorkAmmount = data.WorkAmount;
@@ -501,7 +513,7 @@ io.on("connection", function (socket) {
         connectionpool_tiles.getConnection(function (err, connectionT) {
 
 
-            connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username,Number(tileID)], function (err, rows, fields) {
                 if (err) throw err;
 
 
@@ -516,7 +528,7 @@ io.on("connection", function (socket) {
                     connectionpool.getConnection(function (err, connection) {
 
 
-                        connection.query('SELECT * FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) {
+                        connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) {
                             if (err) throw err;
 
                             console.log("lookin to get some juice from " + assignedWorkName);
@@ -527,18 +539,17 @@ io.on("connection", function (socket) {
 
                                 var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
 
-                                connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) { // reset tile growth time
+                                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username,post,tileID], function (err, rows, fields) { // reset tile growth time
                                     if (err) throw err;
 
                                 });
 
-               
+                                
 
-                                console.log("asking for "+assignedWorkName+", ammount: "+assignedWorkAmmount+", uname is "+Uname);
 
-                                TakeAwayItem(assignedWorkName, assignedWorkAmmount, Uname);
+                                TakeAwayItem(assignedWorkName, assignedWorkAmmount, username);
 
-                      
+                                
 
                                 socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
 
@@ -559,10 +570,13 @@ io.on("connection", function (socket) {
     socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
 
 
-        var Uname = data.Uname;               //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
+        var username = data.Uname;               
+
+        //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
         // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
         //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
-        //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB.h
+        //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB
+
         var salesNum = data.salesNum;
         var DBdollars;
         var rowsPricings;
@@ -575,7 +589,7 @@ io.on("connection", function (socket) {
 
             //waterfall this shit
 
-            console.log(Uname);
+            console.log(data);
 
 
 
@@ -588,7 +602,7 @@ io.on("connection", function (socket) {
 
                 //waterfall this shit
 
-                connection.query('SELECT * FROM stats WHERE username = ' + "'" + Uname + "'", function (err, rowsM, fields) { //getting dollars for adding money later
+                connection.query('SELECT * FROM stats WHERE username = ?',username, function (err, rowsM, fields) { //getting dollars for adding money later
                     if (err) throw err;
 
                     postMoney = rowsM[0];
@@ -597,7 +611,7 @@ io.on("connection", function (socket) {
 
                     //check if rowsPrices are still accessible here. Might be only available in the callback.
 
-                    connection.query('SELECT * FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) {
+                    connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) {
                         if (err) throw err;
 
 
@@ -608,7 +622,11 @@ io.on("connection", function (socket) {
 
                             if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
 
-                                console.log(data[i + "name"]);
+                                console.log(i+" "+data[i + "name"]+" "+data[i + "amount"]);
+
+
+                                console.log(Number(rows[0][data[i + "name"]])+"is less than"+Number(data[i + "amount"]));
+
                                 socket.emit("DISCREPANCY", { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 }); //implement into client
 
                             } else {// viskas probs OK, sale allowed.
@@ -624,12 +642,12 @@ io.on("connection", function (socket) {
                         }
 
 
-                        connection.query('UPDATE inventories SET ? WHERE username = ' + "'" + Uname + "'", post, function (err, rows, fields) {
+                        connection.query('UPDATE inventories SET ? WHERE username = ?',[post,username], function (err, rows, fields) {
                             if (err) throw err;
 
 
 
-                            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + Uname + "'", postMoney, function (err, rowsM, fields) { //adding all the monay
+                            connection.query('UPDATE stats SET ? WHERE username = ?',[postMoney,username] , function (err, rowsM, fields) { //adding all the monay
                                 if (err) throw err;
 
                                 socket.emit("SALE_VERIFICATION", postMoney);
@@ -700,7 +718,7 @@ io.on("connection", function (socket) {
     socket.on("VERIFY_COLLECT_TILE", function (data) {
 
 
-        var Uname = data.Uname;
+        var username = data.Uname;
         var tileID = data.TileID;
         var tileProgAmount;
         var tileName;
@@ -715,7 +733,7 @@ io.on("connection", function (socket) {
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
 
-            connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
                 if (err) throw err;
 
                 tileName = rows[0].NAME;
@@ -735,25 +753,27 @@ io.on("connection", function (socket) {
 
 
 
+
                         var prog = Number(tileGrowthStart) + tileProgAmount;   //FIXME: Number() because of varchar in MYSQL
 
                         if (UnixTime() >= prog) {//Resetting tile progress and adding items to inventory
 
                             var randProduce = chance.floating({ min: tileProduceRandomRange1, max: tileProduceRandomRange2 }).toFixed(2); //randomized produce kiekis
 
-                            connection.query('SELECT ' + tileProduceName + ' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+
+
+                            connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) throw err;
 
 
                                 console.log(rows);
                                 var newProduceAmount = rows[0][tileProduceName] + Number(randProduce) * tileCount;
+                                var post={};
+                                post[tileProduceName]=newProduceAmount;
 
 
 
-                                var unixBuffer = UnixTime(); //temp probably FIXME
-                                var unixJson = { unixBuffer: unixBuffer.toString() };
-
-                                connection.query('UPDATE inventories SET ' + tileProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                connection.query('UPDATE inventories SET ? WHERE username = ?',[post,username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                     if (err) throw err;
 
                                 });
@@ -761,7 +781,7 @@ io.on("connection", function (socket) {
 
                                 if (singleUse === 1) {
 
-                                    connectionT.query('DELETE FROM ' + Uname + ' WHERE ID = ?', tileID, function (err, rows, fields) {
+                                    connectionT.query('DELETE FROM ?? WHERE ID = ?', [username,tileID], function (err, rows, fields) {
                                         if (err) throw err;
 
                                     });
@@ -775,7 +795,7 @@ io.on("connection", function (socket) {
                             });
 
 
-                            connectionT.query('UPDATE ' + Uname + ' SET START_OF_GROWTH = ' + UnixTime() + ' WHERE ID = ' + tileID, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            connectionT.query('UPDATE ?? SET START_OF_GROWTH = ? WHERE ID = ?',[username,UnixTime(),tileID], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) throw err;
 
                             });
@@ -817,7 +837,7 @@ io.on("connection", function (socket) {
         //ALSO skaiciukas pakyla nuo medzio, kiek harvestinta KG vaisiu. 
 
 
-        var Uname = data.Uname;
+        var username = data.Uname;
         var tileID = data.TileID;
         var tileProgAmount;
         var tileName;
@@ -828,7 +848,7 @@ io.on("connection", function (socket) {
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
 
-            connectionT.query('SELECT * FROM ' + Uname + ' WHERE ID = ?', Number(tileID), function (err, rows, fields) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?',[username,Number(tileID)] , function (err, rows, fields) {
                 if (err) throw err;
 
                 tileName = rows[0].NAME;
@@ -855,28 +875,32 @@ io.on("connection", function (socket) {
 
                             var JuiceProduceAmount = tileWorkAmount * PressEfficiency;
 
-                            connection.query('SELECT ' + tileWorkName + "_" + PressProduceName + ' FROM inventories WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) throw err;
 
 
                                 console.log(rows);
                                 var newProduceAmount = rows[0][tileWorkName + "_" + PressProduceName] + Number(JuiceProduceAmount);
 
+                                var post={};
+                                post[tileWorkName + "_" + PressProduceName]=newProduceAmount;
 
 
 
-                                connection.query('UPDATE inventories SET ' + tileWorkName + "_" + PressProduceName + " = " + newProduceAmount + ' WHERE username = ' + "'" + Uname + "'", function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+
+                                connection.query('UPDATE inventories SET ? WHERE username = ?',[post,username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                     if (err) throw err;
 
                                 });
-                                console.log("sent out command to client");
+                                
 
                                 socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime(), currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
+                        
 
                             });
-                            var post = { BUILDING_CURRENT_WORK_AMOUNT: 0, WORK_NAME: "", START_OF_GROWTH: 0 };
+                            var post1 = { BUILDING_CURRENT_WORK_AMOUNT: 0, WORK_NAME: "", START_OF_GROWTH: 0 };
 
-                            connectionT.query('UPDATE ' + Uname + ' SET ? WHERE ID = ' + tileID, post, function (err, rows, fields) { // resetinam progresa
+                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?',[username,post1,tileID] , function (err, rows, fields) { // resetinam progresa
                                 if (err) throw err;
 
                             });
@@ -924,7 +948,7 @@ io.on("connection", function (socket) {
 
         connectionpool.getConnection(function (err, connection) {
 
-            connection.query('SELECT * FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
+            connection.query('SELECT * FROM stats WHERE username = ?',username, function (err, rows, fields) {
                 if (err) throw err;
 
                 DBdollars = rows[0].dollars;
@@ -933,11 +957,8 @@ io.on("connection", function (socket) {
 
                 if (DBdollars >= Math.pow(10, currentPlotsize - 1)) { //uztenka praplesti plotui
                     post = { plotsize: currentPlotsize + 1 };
-                    connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+                    connection.query('UPDATE stats SET ? WHERE username = ?', [post,username], function (err, rows, fields) {
                         if (err) throw err;
-
-
-
 
 
                     });
@@ -1043,9 +1064,9 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 function CleanInput(a, mode) {
     switch (mode) {
         case 1:
-            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+        var b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
-            break;
+        break;
         case 2: //kitas refinery mode
             //..code
             break;
@@ -1054,100 +1075,100 @@ function CleanInput(a, mode) {
             //code
             break;
 
-        default:
+            default:
             // ....
             break;
+        }
+
+        return a;
     }
 
-    return a;
-}
+    function TakeAwayMoney(money, lostmoney, username) {
 
-function TakeAwayMoney(money, lostmoney, username) {
+        connectionpool.getConnection(function (err, connection) {
+            var remaining = money - lostmoney;
+            var post = { dollars: remaining };
 
-    connectionpool.getConnection(function (err, connection) {
-        var remaining = money - lostmoney;
-        var post = { dollars: remaining };
-
-        connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
-            if (err) throw err;
-
-        });
-        connection.release();
-    });
-}
-
-
-function AddMoney(addedmoney, username) {
-
-    connectionpool.getConnection(function (err, connection) {
-
-        connection.query('SELECT dollars FROM stats WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
-            if (err) throw err;
-
-
-            var DBdollars = rows[0].dollars;
-            var newmoney = DBdollars + addedmoney;
-            var post = { dollars: newmoney };
-
-
-            connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+            connection.query('UPDATE stats SET ? WHERE username = ? ',[post,username] , function (err, rows, fields) {
                 if (err) throw err;
 
             });
-
-
-
+            connection.release();
         });
-        connection.release();
-    });
-}
+    }
 
 
-function TakeAwayItem(item, amount, username) {
+    function AddMoney(addedmoney, username) {
 
-    connectionpool.getConnection(function (err, connection) {
+        connectionpool.getConnection(function (err, connection) {
 
-        connection.query('SELECT * FROM inventories WHERE username = ' + "'" + username + "'", function (err, rows, fields) {
-            if (err) throw err;
-
-   
+            connection.query('SELECT dollars FROM stats WHERE username = ?',username, function (err, rows, fields) {
+                if (err) throw err;
 
 
-            var remaining = rows[0][item] - amount;
-            var post = {};
+                var DBdollars = rows[0].dollars;
+                var newmoney = DBdollars + addedmoney;
+                var post = { dollars: newmoney };
+
+
+                connection.query('UPDATE stats SET ? WHERE username = ?', [post,username], function (err, rows, fields) {
+                    if (err) throw err;
+
+                });
+
+
+
+            });
+            connection.release();
+        });
+    }
+
+
+    function TakeAwayItem(item, amount, username) {
+
+        connectionpool.getConnection(function (err, connection) {
+
+            connection.query('SELECT * FROM inventories WHERE username = ?',username, function (err, rows, fields) {
+                if (err) throw err;
+
+                
+
+
+                var remaining = rows[0][item] - amount;
+                var post = {};
             post[item] = remaining;//FIXME
 
             console.log(post);
 
 
-            connection.query('UPDATE inventories SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
+            connection.query('UPDATE inventories SET ? WHERE username = ?',[post,username] , function (err, rows, fields) {
                 if (err) throw err;
 
-          
+                
 
             });
 
 
         });
 
-        connection.release();
-    });
-}
-
-
-function UpdateLastloggedIn(username) {
-
-    connectionpool.getConnection(function (err, connection) {
-
-        var post = { lastonline: UnixTime() };
-        connection.query('UPDATE stats SET ? WHERE username = ' + "'" + username + "'", post, function (err, rows, fields) {
-            if (err) throw err;
-
+            connection.release();
         });
+    }
 
-        connection.release();
-    });
-}
+
+    function UpdateLastloggedIn(username) {
+
+        connectionpool.getConnection(function (err, connection) {
+
+            var post = { lastonline: UnixTime() };
+            connection.query('UPDATE stats SET ? WHERE username = ?', [post,username], function (err, rows, fields) {
+                if (err) throw err;
+
+            });
+
+            connection.release();
+        });
+    }
 
 
 // check if enough isnt working FINDAWAY (escapes from callback hell)
