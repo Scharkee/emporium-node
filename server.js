@@ -212,55 +212,19 @@ socket.on("BUY_TILE", function (data) {//tile purchase function
 
 socket.on("SELL_TILE", function (data) {//tile purchase function
 
-    var username = data.Uname;
-    var SellTileID = parseInt(data.SellTileID);
-    var buildingName = data.TileName;
 
-    var count;
+    db.HandleTileSale(data).then(function(data){
 
-    connectionpool.getConnection(function (err, connection) {
+        socket.emit("ADD_FUNDS", data);
 
 
+    }).catch(function(){
 
-        connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingName, function (err, rows, fields) {
-            if (err) throw err;
+       console.error("error caught @ tile sale");
 
-            DBBuildingPrice = rows[0].PRICE;
-
-
-            connectionpool_tiles.getConnection(function (err, connectionT) {  //completely new connection fron tile connection pool for inserting into the tile table. 
-
-
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, SellTileID], function (err, rows, fields) {
-                    if (err) throw err;
-
-
-                    count = rows[0].COUNT;
-
-
-
-                    connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, SellTileID], function (err, rows, fields) {
-                        if (err) throw err;
-
-
-                        socket.emit("ADD_FUNDS", { addFunds: (DBBuildingPrice / 4) * count });
-                        AddMoney((DBBuildingPrice / 4) * count, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
-
-
-                    });
-
-
-                });
-
-
-
-
-                connectionT.release();
-            });
-
-        });
-        connection.release();
     });
+
+
 });
 
 
@@ -269,69 +233,19 @@ socket.on("SELL_TILE", function (data) {//tile purchase function
 
 socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
 
+    db.HandleTileAssignWork(data).then(function(data){
 
-    var username = data.Uname;
-    var tileID = data.TileID;
-    var assignedWorkName = data.WorkName;
-    var assignedWorkAmmount = data.WorkAmount;
-    var DBdollars;
-    var DBBuildingPrice;
+        socket.emit("ASSIGN_TILE_WORK", data);
 
 
+    }).catch(function(){
 
+       console.error("error caught @ tile work assignment");
 
-    connectionpool_tiles.getConnection(function (err, connectionT) {
-
-
-        connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
-            if (err) throw err;
-
-
-            tileCurrentWork = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
-
-            if (tileCurrentWork !== 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
-                //send discrepency
-
-            } else {
-
-
-                connectionpool.getConnection(function (err, connection) {
-
-
-                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-                        if (err) throw err;
-
-                        console.log("lookin to get some juice from " + assignedWorkName);
-
-                        if (rows[0][assignedWorkName] >= assignedWorkAmmount) {
-
-                            console.log(rows[0][assignedWorkName] +" is the name");
-
-                            var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
-
-                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function (err, rows, fields) { // reset tile growth time
-                                if (err) throw err;
-
-                            });
-
-
-
-
-                            TakeAwayItem(assignedWorkName, assignedWorkAmmount, username);
-
-
-
-                            socket.emit("ASSIGN_TILE_WORK", { tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
-
-                        }
-                    });
-                    connection.release();
-                });
-            }
-
-        });
-        connectionT.release();
     });
+
+
+ 
 
 });
 
@@ -340,112 +254,19 @@ socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
 socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
 
 
-    var username = data.Uname;
+    db.HandleProduceSale(data).then(function(data){
 
-    //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
-    // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
-    //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
-    //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB
-
-    var salesNum = data.salesNum;
-    var DBdollars;
-    var rowsPricings;
-    var post = {};
-    var postMoney = {};
+        socket.emit(data.call, data.content);
 
 
+    }).catch(function(){
 
-    connectionpool.getConnection(function (err, connection) {
+       console.error("error caught @ produce sale");
 
-        //waterfall this shit
-
-        console.log(data);
-
-
-
-        connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
-            if (err) throw err;
-
-            rowsPricings = rowsP;
-
-
-
-            //waterfall this shit
-
-            connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rowsM, fields) { //getting dollars for adding money later
-                if (err) throw err;
-
-                postMoney = rowsM[0];
-
-
-
-                //check if rowsPrices are still accessible here. Might be only available in the callback.
-
-                connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-                    if (err) throw err;
-
-
-                    for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
-
-
-                        console.log("lookin to sell " + data[i + "amount"] + " of " + data[i + "name"]);    //check if tis notation works 1name, 1amount, 2name, 2amount....
-
-                        if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
-
-                            console.log(i + " " + data[i + "name"] + " " + data[i + "amount"]);
-
-
-                            console.log(Number(rows[0][data[i + "name"]]) + "is less than" + Number(data[i + "amount"]));
-
-                            socket.emit("DISCREPANCY", { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 }); //implement into client
-
-                        } else {// viskas probs OK, sale allowed.
-
-
-                            post[data[i.toString() + "name"].toString()] = Number(rows[0][data[i + "name"]]) - Number(data[i + "amount"]); // naujas amountas paruosiamas postui i database. 
-
-                            postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir 
-                            //paciam sale screen.( $/per kilograma)
-
-
-                        }
-                    }
-
-
-                    connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-                        if (err) throw err;
-
-
-
-                        connection.query('UPDATE stats SET ? WHERE username = ?', [postMoney, username], function (err, rowsM, fields) { //adding all the monay
-                            if (err) throw err;
-
-                            socket.emit("SALE_VERIFICATION", postMoney);
-
-                        });
-
-                    });
-
-                });
-
-                //WATERFALL (cia final save functions jei viskas pavyko)
-
-
-
-                //WATERFALL (cia final save functions jei viskas pavyko)
-
-            });
-
-
-        });
-
-
-
-
-
-
-        connection.release();
     });
+
+
+
 
 });
 
