@@ -39,346 +39,346 @@ var currentConnections = {};
 
 
 io.on("connection", function (socket) {
-//fix this shit, istrint shitty variables
-var currentUser;
+    //fix this shit, istrint shitty variables
+    var currentUser;
 
-var UserUsername;
-var UserDollars;
-var UserPlotSize;
-var UserLastOnline;
+    var UserUsername;
+    var UserDollars;
+    var UserPlotSize;
+    var UserLastOnline;
 
 
 
-//preliminarus checkas del duplicate prisijungimu.
+    //preliminarus checkas del duplicate prisijungimu.
 
 
-if (findValue(currentConnections, socket.request.connection.remoteAddress )) { //TODO: WRITE A WORKING DUPLICATE CONNECTION CHECK
+    if (findValue(currentConnections, socket.request.connection.remoteAddress)) { //TODO: WRITE A WORKING DUPLICATE CONNECTION CHECK
 
-    console.log("user already logged in from different computer!");
+        console.log("user already logged in from different computer!");
 
-    socket.emit("DISCREPANCY", { reason:1 , reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF. 
-    socket.disconnect();
-
-}
-
-
-currentConnections[socket.id] = { socket: socket, IP: socket.request.connection.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
-clientCount.push(socket);
-//registruojamas socket + user IP
-
-
-console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.request.connection.remoteAddress);
-
-socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
-
-
-socket.on("CHECK_LOGIN", function (data) {
-
-    var data=data;
-
-
-
-
-
-    db.ParseLogin(data).then(function(data){
-
-
-        var status=data.status;
-        socket.emit("PASS_CHECK_CALLBACK",{passStatus:status});
-
-    }).catch(function (){
-
-        console.error("error caught");
-
-
-    });
-    
-
-
-
-});
-
-
-socket.on("CREATE_USER", function (data) {
-
-   db.CreateUser(data);
-
-});
-
-//GAME STAT RETRIEVAL CALLS
-
-socket.on("GET_STATS", function (data) {
-
-    db.GetStats(data).then(function(data){
-
-        socket.emit("RETRIEVE_STATS", data);
-
-
-    }).catch(function(){
-
-     console.error("error caughte");
-
- });
-
-});
-
-//make function that manually pings for response, if response arrives, push lastloggedin to server \/
-
-
-
-socket.on("GET_TILE_DATA", function (data) {//tile information function
-
-
-    db.GetTileData(data).then(function(data){
-
-        socket.emit("RECEIVE_TILES", data);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tiledata");
-
- });
-
-
-});
-
-
-socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
-
-    db.GetTiles(data).then(function(data){
-
-        socket.emit("RECEIVE_TILE_INFORMATION", data);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tile info");
-
- });
-
-
-    db.GetInventory(data).then(function(data){
-
-        socket.emit("RECEIVE_INVENTORY", data);
-
-
-    }).catch(function(){
-
-        console.error("error caught @ inventory info");
-
-    });
-
-
-});
-
-
-
-socket.on("BUY_TILE", function (data) {//tile purchase function
-
-    db.HandleTilePurchase(data).then(function(data){
-
-
-        socket.emit(data.call,  data.content );
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tile buy");
-
- });
-
-
-});
-
-
-socket.on("SELL_TILE", function (data) {//tile purchase function
-
-
-    db.HandleTileSale(data).then(function(data){
-
-        socket.emit("ADD_FUNDS", data);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tile sale");
-
- });
-
-
-});
-
-
-socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
-
-    db.HandleTileAssignWork(data).then(function(data){
-
-        socket.emit("ASSIGN_TILE_WORK", data);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tile work assignment");
-
- });
-
-
-});
-
-
-socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
-
-
-    db.HandleProduceSale(data).then(function(data){
-
-        socket.emit(data.call, data.content);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ produce sale");
-
- });
-
-
-
-
-});
-
-
-
-//FIXME: this shit here returns scientific number and not the real int.
-
-
-socket.on("GET_UNIX", function (data) {
-    var unixBuffer = UnixTime(); //temp probably
-
-    var unixJson = { unixBuffer: unixBuffer.toString() };
-
-    socket.emit("RECEIVE_UNIX", unixJson);
-});
-
-socket.on("CLIENT_DATA", function (data) {
-
-    currentConnections[socket.id].name = data.Uname;
-
-
-});
-
-
-socket.on("DISCONNECT", function (data) {
-
-    socket.disconnect();
-});
-
-
-
-
-
-socket.on("VERIFY_COLLECT_TILE", function (data) {
-
-    db.HandleTileCollect(data).then(function(data){
-
-        socket.emit(data.call, data.content);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ tile collection");
-
-    });
-
-
-});
-
-
-
-
-socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
-
-    db.HandlePressWorkCollection(data).then(function(data){
-
-        socket.emit(data.call, data.content);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ press work collection");
-
-    });
-
-
-});
-
-socket.on("VERIFY_EXPAND_PLOTSIZE", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
-
-    db.HandlePlotsizeExpansion(data).then(function(data){
-
-        socket.emit(data.call, data.content);
-
-
-    }).catch(function(){
-
-     console.error("error caught @ plotsize expansion");
-
-    });
-
-  
-
-
-});
-
-socket.on("VERIFY_ACTION", function (data) {// misc action verifyinimo funkcija.
-    //every misc action goes here by switch/case(fertilising, bleh bleh.)
-
-
-
-
-});
-
-
-
-//GAME TODO's  
-
-//cheateriu checkai
-//TODO: each game command that comes here must emit VERIFICATION,true back to client + add checks for it in the client, if returned FALSE or didnt return at all,
-//TODO: checks in each function for discrepancies, and if something doesnt match up, send VERIFICATION,false and stop connection(prolly not)? and DONT SAVE TO DB. 
-//TODO: resync function for when VERIFICATION(or just discrepency) is false. Send to client and change all values MB so no restart is needed. Also include resyncing screen for the time it takes to 
-//TODO: version control? if somebody manages to DL the game and has older version then this could get fucked.
-
-
-//NON-PRIORITY
-
-//TODO: set up login screen credits ALSO make simple socket.emit in the client for emitting feedback. Some new table in DB to store that.
-//TODO: music, and music-soundcloud hookup SUPERNON PRIORITY
-//TODO: effects for upgrading and buying towers + collecting stuff
-
-
-
-//on client disconnected
-socket.on("disconnect", function (data) {
-
-
-   //halp or fix later
-   try{
-
-
-    console.log("user  " + currentConnections[socket.id].name + " dc'd");
-        clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
-        delete currentConnections[socket.id];
-
-        UpdateLastloggedIn(currentConnections[socket.id].name);
-
-
-    }catch(err){
-
+        socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF. 
+        socket.disconnect();
 
     }
 
 
+    currentConnections[socket.id] = { socket: socket, IP: socket.request.connection.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
+    clientCount.push(socket);
+    //registruojamas socket + user IP
 
-});
+
+    console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.request.connection.remoteAddress);
+
+    socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
+
+
+    socket.on("CHECK_LOGIN", function (data) {
+
+        var data = data;
+
+
+
+
+
+        db.ParseLogin(data).then(function (data) {
+
+
+            var status = data.status;
+            socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
+
+        }).catch(function () {
+
+            console.error("error caught");
+
+
+        });
+
+
+
+
+    });
+
+
+    socket.on("CREATE_USER", function (data) {
+
+        db.CreateUser(data);
+
+    });
+
+    //GAME STAT RETRIEVAL CALLS
+
+    socket.on("GET_STATS", function (data) {
+
+        db.GetStats(data).then(function (data) {
+
+            socket.emit("RETRIEVE_STATS", data);
+
+
+        }).catch(function () {
+
+            console.error("error caughte");
+
+        });
+
+    });
+
+    //make function that manually pings for response, if response arrives, push lastloggedin to server \/
+
+
+
+    socket.on("GET_TILE_DATA", function (data) {//tile information function
+
+
+        db.GetTileData(data).then(function (data) {
+
+            socket.emit("RECEIVE_TILES", data);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tiledata");
+
+        });
+
+
+    });
+
+
+    socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
+
+        db.GetTiles(data).then(function (data) {
+
+            socket.emit("RECEIVE_TILE_INFORMATION", data);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tile info");
+
+        });
+
+
+        db.GetInventory(data).then(function (data) {
+
+            socket.emit("RECEIVE_INVENTORY", data);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ inventory info");
+
+        });
+
+
+    });
+
+
+
+    socket.on("BUY_TILE", function (data) {//tile purchase function
+
+        db.HandleTilePurchase(data).then(function (data) {
+
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tile buy");
+
+        });
+
+
+    });
+
+
+    socket.on("SELL_TILE", function (data) {//tile purchase function
+
+
+        db.HandleTileSale(data).then(function (data) {
+
+            socket.emit("ADD_FUNDS", data);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tile sale");
+
+        });
+
+
+    });
+
+
+    socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
+
+        db.HandleTileAssignWork(data).then(function (data) {
+
+            socket.emit("ASSIGN_TILE_WORK", data);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tile work assignment");
+
+        });
+
+
+    });
+
+
+    socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
+
+
+        db.HandleProduceSale(data).then(function (data) {
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ produce sale");
+
+        });
+
+
+
+
+    });
+
+
+
+    //FIXME: this shit here returns scientific number and not the real int.
+
+
+    socket.on("GET_UNIX", function (data) {
+        var unixBuffer = UnixTime(); //temp probably
+
+        var unixJson = { unixBuffer: unixBuffer.toString() };
+
+        socket.emit("RECEIVE_UNIX", unixJson);
+    });
+
+    socket.on("CLIENT_DATA", function (data) {
+
+        currentConnections[socket.id].name = data.Uname;
+
+
+    });
+
+
+    socket.on("DISCONNECT", function (data) {
+
+        socket.disconnect();
+    });
+
+
+
+
+
+    socket.on("VERIFY_COLLECT_TILE", function (data) {
+
+        db.HandleTileCollect(data).then(function (data) {
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ tile collection");
+
+        });
+
+
+    });
+
+
+
+
+    socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
+
+        db.HandlePressWorkCollection(data).then(function (data) {
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ press work collection");
+
+        });
+
+
+    });
+
+    socket.on("VERIFY_EXPAND_PLOTSIZE", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+
+        db.HandlePlotsizeExpansion(data).then(function (data) {
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ plotsize expansion");
+
+        });
+
+
+
+
+    });
+
+    socket.on("VERIFY_ACTION", function (data) {// misc action verifyinimo funkcija.
+        //every misc action goes here by switch/case(fertilising, bleh bleh.)
+
+
+
+
+    });
+
+
+
+    //GAME TODO's  
+
+    //cheateriu checkai
+    //TODO: each game command that comes here must emit VERIFICATION,true back to client + add checks for it in the client, if returned FALSE or didnt return at all,
+    //TODO: checks in each function for discrepancies, and if something doesnt match up, send VERIFICATION,false and stop connection(prolly not)? and DONT SAVE TO DB. 
+    //TODO: resync function for when VERIFICATION(or just discrepency) is false. Send to client and change all values MB so no restart is needed. Also include resyncing screen for the time it takes to 
+    //TODO: version control? if somebody manages to DL the game and has older version then this could get fucked.
+
+
+    //NON-PRIORITY
+
+    //TODO: set up login screen credits ALSO make simple socket.emit in the client for emitting feedback. Some new table in DB to store that.
+    //TODO: music, and music-soundcloud hookup SUPERNON PRIORITY
+    //TODO: effects for upgrading and buying towers + collecting stuff
+
+
+
+    //on client disconnected
+    socket.on("disconnect", function (data) {
+
+
+        //halp or fix later
+        try {
+
+
+            console.log("user  " + currentConnections[socket.id].name + " dc'd");
+            clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
+            delete currentConnections[socket.id];
+
+            UpdateLastloggedIn(currentConnections[socket.id].name);
+
+
+        } catch (err) {
+
+
+        }
+
+
+
+    });
 
 });//iserts default stats into DB when user first starts the game,
 
@@ -440,20 +440,20 @@ function TakeAwayItem(item, amount, username) {
 
             var remaining = rows[0][item] - amount;
             var post = {};
-        post[item] = remaining;//FIXME
+            post[item] = remaining;//FIXME
 
-        console.log(post);
+            console.log(post);
 
 
-        connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-            if (err) throw err;
+            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                if (err) throw err;
 
+
+
+            });
 
 
         });
-
-
-    });
 
         connection.release();
     });
@@ -489,20 +489,20 @@ function UnixTime() {
 function CleanInput(a, mode) {
     switch (mode) {
         case 1:
-        var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
-        break;
-    case 2: //kitas refinery mode
-        //..code
-        break;
+            break;
+        case 2: //kitas refinery mode
+            //..code
+            break;
 
-    case 3: // trecias refinery mode
-        //code
-        break;
+        case 3: // trecias refinery mode
+            //code
+            break;
 
         default:
-        // ....
-        break;
+            // ....
+            break;
     }
 
     return a;
