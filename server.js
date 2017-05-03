@@ -78,6 +78,8 @@ socket.on("CHECK_LOGIN", function (data) {
 
 
 
+
+
     db.ParseLogin(data).then(function(data){
 
 
@@ -126,214 +128,85 @@ socket.on("GET_STATS", function (data) {
 
 socket.on("GET_TILE_DATA", function (data) {//tile information function
 
-    var username = data.Uname;
 
-    connectionpool_tiles.getConnection(function (err, connection) {
+    db.GetTileData(data).then(function(data){
 
-
-        connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
-            if (err) throw err;
-        });
-
-        connection.query('SELECT * FROM ??', data.Uname, function (err, rows, fields) {
-            if (err) throw err;
+        socket.emit("RECEIVE_TILES", data);
 
 
-            socket.emit("RECEIVE_TILES", { rows });
+    }).catch(function(){
 
+       console.error("error caught @ tiledata");
 
-
-
-
-        });
-        connection.release();
     });
+
+
 });
 
 
 socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
 
-    var username = data.Uname;
+    db.GetTiles(data).then(function(data){
+
+        socket.emit("RECEIVE_TILE_INFORMATION", data);
 
 
-    connectionpool.getConnection(function (err, connection) {
+    }).catch(function(){
 
-
-        connection.query('SELECT * FROM buildings', function (err, rows, fields) {
-            if (err) throw err;
-
-
-            socket.emit("RECEIVE_TILE_INFORMATION", { rows });
-
-
-
-
-        });
-
-
-        //ALSO GETS INVENTORY FOR PLAYER
-
-
-
-        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-            if (err) throw err;
-
-            if (!rows.length) { //should never happen technically
-                console.log("user does not have an inventory!");
-
-                var post = { username: data.Uname };
-                connection.query('INSERT INTO inventories SET ?', post, function (err, rows, fields) {
-                    if (err) throw err;
-
-                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-                        if (err) throw err;
-
-                        socket.emit("RECEIVE_INVENTORY", { rows });
-                    });
-                });
-
-            } else {
-
-                socket.emit("RECEIVE_INVENTORY", { rows });
-            }
-
-
-
-
-
-
-        });
-        connection.release();
+       console.error("error caught @ tile info");
 
     });
+
+
+    db.GetInventory(data).then(function(data){
+
+        socket.emit("RECEIVE_INVENTORY", data);
+
+
+    }).catch(function(){
+
+            console.error("error caught @ inventory info");
+
+    });
+
+
 });
 
 
 
 socket.on("BUY_TILE", function (data) {//tile purchase function
 
-    var username = data.Uname;
-    var buildingname = data.BuildingName;
-    var DBdollars;
-    var DBBuildingPrice;
-    var TileX = parseFloat(data.X);
-    var TileZ = parseFloat(data.Z);
-    var tilecount = data.TileCount;
-    var tileID;
-    var count = 1;
+    db.HandleTilePurchase(data).then(function(data){
 
-    try {
-        tileID = data.tileID;
-    } catch (err) {
-        console.log("tile doesnt exist");
-    }
-
-    connectionpool.getConnection(function (err, connection) {
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-
-            connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
-                if (err) throw err;
+        switch(data.status){
 
 
-                DBdollars = rows[0].dollars;
+            case 1:
 
+            socket.emit("BUILD_TILE", data.data);
 
+            break;
 
-            });
+            case 2:
 
-            connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingname, function (err, rows, fields) {
-                if (err) throw err;
+            socket.emit("NO_FUNDS",  data.data);
 
-                DBBuildingPrice = rows[0].PRICE;
+            break;
 
+            case 3:
 
+            socket.emit("UPGRADE_TILE",  data.data );
 
-                if (tileID === undefined) {//tile nera.
+            break;
+        }
 
-                    console.log("tile nera");
+    }).catch(function(){
 
-                    if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
+       console.error("error caught @ tile buy");
 
-
-                        TakeAwayMoney(DBdollars, DBBuildingPrice, username);
-
-                        var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
-                        console.log(post);
-
-                        connectionT.query('INSERT INTO ' + username + ' SET ?', post, function (err, rows, fields) {
-                            if (err) throw err;
-
-
-
-                            socket.emit("BUILD_TILE", { TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId });
-
-
-                        });
-
-                    } else {//not enough dollars to buy boi
-
-                        var missing = DBBuildingPrice - DBdollars;
-                        socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
-
-                    }
-
-
-                } else {//upgradinamas tile.
-                    console.log(username + " is the username");
-
-
-                    connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
-                        if (err) throw err;
-
-                        count = rows[0].COUNT;
-
-                        if (count === 5) {
-                            console.log("tile at max upgrades");
-
-                        } else {//proceed with the upgrade
-                            console.log("upgrading");
-
-
-                            count++;
-
-
-                            if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
-
-
-                                TakeAwayMoney(DBdollars, DBBuildingPrice, username);
-
-                                var post = { COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
-                                console.log(post);
-
-                                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function (err, rows, fields) {
-                                    if (err) throw err;
-
-                                    console.log({ tileID: tileID });
-                                    socket.emit("UPGRADE_TILE", { tileID: Number(tileID) });
-                                    console.log(tileID);
-
-                                });
-
-                            } else {//not enough dollars to buy boi
-
-                                var missing = DBBuildingPrice - DBdollars;
-                                socket.emit("NO_FUNDS", { missing: missing });   //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
-
-                            }
-                        }
-
-                    });
-
-                }
-
-
-
-                connectionT.release();
-            });
-
-        });
-        connection.release();
     });
+
+
 });
 
 
@@ -783,8 +656,6 @@ socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
                             post[tileWorkName + "_" + PressProduceName] = newProduceAmount;
 
 
-
-
                             connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) throw err;
 
@@ -802,8 +673,6 @@ socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
 
                         });
 
-
-
                     } else {
 
                         console.log("=====================harvest not allowed=======================");
@@ -815,9 +684,6 @@ socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
                 });
                 connection.release();
             });
-
-
-
 
         });
 
@@ -910,22 +776,25 @@ socket.on("VERIFY_ACTION", function (data) {// misc action verifyinimo funkcija.
 socket.on("disconnect", function (data) {
 
 
-    console.log("user  " + currentConnections[socket.id].name + " dc'd");
+   //halp or fix later
+   try{
 
-    if (currentConnections[socket.id].name) { //should push lastloggeds of anyONE connected. Kai neuzregisruojamas vardas(undefined), tai 
-        //fake prisijugimas ir bandymas issaugot MYSQL uzlaus serveri. Nepushinam tada.
+        
+        console.log("user  " + currentConnections[socket.id].name + " dc'd");
+        clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
+        delete currentConnections[socket.id];
 
         UpdateLastloggedIn(currentConnections[socket.id].name);
 
-    }
+   
+   }catch(err){
+  
 
-    clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
-    delete currentConnections[socket.id];
+   }
+
+
 
 });
-
-
-
 
 });//iserts default stats into DB when user first starts the game,
 
