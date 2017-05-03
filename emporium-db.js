@@ -405,7 +405,7 @@ function HandleTilePurchase(data,callback){
                         	}  
 
 
-                        	var callbackData={status:1,data:{ TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId }};
+                        	var callbackData={call:"BUILD_TILE",content:{ TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId }};
                         	resolve(callbackData);
 
                         });
@@ -413,7 +413,7 @@ function HandleTilePurchase(data,callback){
                     } else {//not enough dollars to buy boi
 
                     	var missing = DBBuildingPrice - DBdollars;
-                    	var callbackData={status:2,data:{ missing: missing }};
+                    	var callbackData={call:"NO_FUNDS",content:{ missing: missing }};
                     	resolve(callbackData);
 
                     }
@@ -455,7 +455,7 @@ function HandleTilePurchase(data,callback){
                                 		return callback(err);
                                 	}  
                                 	
-                                	var callbackData={status:3,data:{ tileID: Number(tileID) }};
+                                	var callbackData={call:"UPGRADE_TILE",content:{ tileID: Number(tileID) }};
                                 	resolve(callbackData); 
 
                                 	
@@ -464,7 +464,7 @@ function HandleTilePurchase(data,callback){
                             } else {//not enough dollars to buy boi
 
                             	var missing = DBBuildingPrice - DBdollars;
-                            	var callbackData={status:2,data:{ missing: missing }};
+                            	var callbackData={call:"NO_FUNDS",content:{ missing: missing }};
                                 resolve(callbackData);  //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
 
                             }
@@ -783,6 +783,332 @@ function HandleProduceSale(data,callback){
 });
 }
 
+function HandleTileCollect(data,callback){
+
+    var chance = new Chance();
+
+    callback = callback || function () {}
+    return new Promise(function (resolve, reject) {
+
+        var username = data.Uname;
+        var tileID = data.TileID;
+        var tileProgAmount;
+        var tileName;
+        var tileGrowthStart;
+        var singleUse;
+        var tileCount;
+
+        var tileProduceName;
+        var tileProduceRandomRange1;
+        var tileProduceRandomRange2;
+
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
+                if (err){
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                } 
+
+
+                tileName = rows[0].NAME;
+                tileGrowthStart = rows[0].START_OF_GROWTH;
+                tileCount = rows[0].COUNT;
+
+                connectionpool.getConnection(function (err, connection) {
+
+                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+
+                        tileProgAmount = rows[0].PROG_AMOUNT;
+
+                        tileProduceName = rows[0].TILEPRODUCENAME;
+                        tileProduceRandomRange1 = rows[0].TILEPRODUCERANDOM1;
+                        tileProduceRandomRange2 = rows[0].TILEPRODUCERANDOM2;
+                        singleUse = rows[0].SINGLE_USE;
+
+
+
+
+                    var prog = Number(tileGrowthStart) + tileProgAmount;   //FIXME: Number() because of varchar in MYSQL
+
+                    if (UnixTime() >= prog) {//Resetting tile progress and adding items to inventory
+
+                        var randProduce = chance.floating({ min: tileProduceRandomRange1, max: tileProduceRandomRange2 }).toFixed(2); //randomized produce kiekis
+
+
+
+                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            if (err){
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            } 
+
+
+
+                            console.log(rows);
+                            var newProduceAmount = rows[0][tileProduceName] + Number(randProduce) * tileCount;
+                            var post = {};
+                            post[tileProduceName] = newProduceAmount;
+
+
+
+                            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                if (err){
+                                    reject(err);
+                                    connection.release();
+                                    return callback(err);
+                                } 
+
+
+                            });
+                            
+
+                            if (singleUse === 1) {
+
+                                connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, tileID], function (err, rows, fields) {
+                                    if (err){
+                                        reject(err);
+                                        connection.release();
+                                        return callback(err);
+                                    } 
+
+
+                                });
+
+                            } else {
+
+                                resolve({call:"RESET_TILE_GROWTH",content:{ tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce) * tileCount }});
+                                
+
+
+                            }
+
+                        });
+
+
+                        connectionT.query('UPDATE ?? SET START_OF_GROWTH = ? WHERE ID = ?', [username, UnixTime(), tileID], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            if (err){
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            } 
+
+
+                        });
+
+
+                    } else {
+
+                        console.log("=====================harvest not allowed=======================");
+                        //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
+
+
+                    }
+
+                });
+
+                    connection.release();
+
+                });
+
+
+
+
+            });
+
+
+connectionT.release();
+return callback(null);
+});
+
+
+
+});
+
+}
+
+
+function HandlePressWorkCollection(data,callback){
+    callback = callback || function () {}
+    return new Promise(function (resolve, reject) {
+
+        var username = data.Uname;
+        var tileID = data.TileID;
+        var tileProgAmount;
+        var tileName;
+        var tileGrowthStart;
+        var tileWorkAmount;
+
+
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
+                if (err){
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                } 
+
+
+                tileName = rows[0].NAME;
+                tileGrowthStart = rows[0].START_OF_GROWTH;
+                tileWorkAmount = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
+                tileWorkName = rows[0].WORK_NAME;
+
+                connectionpool.getConnection(function (err, connection) {
+
+                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+
+                        PressSpeed = rows[0].PROG_AMOUNT / 100;
+
+                        PressProduceName = rows[0].TILEPRODUCENAME;
+                        PressEfficiency = rows[0].TILEPRODUCERANDOM1 / 100;
+
+                        console.log(tileWorkName + "_" + PressProduceName);
+
+
+                    var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed;   //FIXME: Number() because of varchar in MYSQL
+
+                    if (UnixTime() >= prog) {
+                        //Resetting tile progress and adding items to inventory
+
+                        var JuiceProduceAmount = tileWorkAmount * PressEfficiency;
+
+                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            if (err){
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            } 
+
+
+
+                            console.log(rows);
+                            var newProduceAmount = rows[0][tileWorkName + "_" + PressProduceName] + Number(JuiceProduceAmount);
+
+                            var post = {};
+                            post[tileWorkName + "_" + PressProduceName] = newProduceAmount;
+
+
+                            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                if (err){
+                                    reject(err);
+                                    connection.release();
+                                    return callback(err);
+                                } 
+
+
+                            });
+
+
+                            
+                            resolve({call:"RESET_TILE_GROWTH",content:{ tileID: tileID, unixBuffer: UnixTime(), currentProduceAmount: newProduceAmount }});
+
+
+                        });
+                        var post1 = { BUILDING_CURRENT_WORK_AMOUNT: 0, WORK_NAME: "", START_OF_GROWTH: 0 };
+
+                        connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post1, tileID], function (err, rows, fields) { // resetinam progresa
+                            if (err){
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            } 
+
+
+                        });
+
+                    } else {
+
+                        console.log("=====================harvest not allowed=======================");
+                        //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
+
+
+                    }
+
+                });
+                    connection.release();
+                });
+
+            });
+
+            connectionT.release();
+            return callback(null);
+
+        });
+
+
+
+    });
+}
+
+
+function HandlePlotsizeExpansion(data,callback){
+    callback = callback || function () {}
+    return new Promise(function (resolve, reject) {
+
+        var username = data.Uname;
+        var DBdollars;
+        var currentPlotsize;
+
+
+
+        connectionpool.getConnection(function (err, connection) {
+
+            connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
+                if (err){
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                } 
+
+
+                DBdollars = rows[0].dollars;
+                currentPlotsize = rows[0].plotsize;
+                console.log(DBdollars + " vs " + Math.pow(10, currentPlotsize));
+
+            if (DBdollars >= Math.pow(10, currentPlotsize - 1)) { //uztenka praplesti plotui
+                post = { plotsize: currentPlotsize + 1 , dollars:(DBdollars-Math.pow(10, currentPlotsize))};
+
+
+                connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                    if (err){
+                        reject(err);
+                        connection.release();
+                        return callback(err);
+                    } 
+
+
+
+                });
+
+
+                resolve({call:"UPDATE_PLOT_SIZE",content: { newplot: currentPlotsize + 1 }});
+                
+            } else {
+                var missing = Math.pow(10, currentPlotsize - 1) - DBdollars;
+                resolve({call:"NO_FUNDS",content:{ missing: missing }});
+
+            }
+        });
+
+
+            connection.release();
+            return callback(null);
+
+
+        });
+
+
+
+
+    });
+}
+
 
 
 function CleanInput(a, mode) {
@@ -950,6 +1276,9 @@ module.exports = {
 	HandleTilePurchase:HandleTilePurchase,
 	HandleTileSale:HandleTileSale,
 	HandleTileAssignWork:HandleTileAssignWork,
-	HandleProduceSale:HandleProduceSale
+	HandleProduceSale:HandleProduceSale,
+    HandleTileCollect:HandleTileCollect,
+    HandlePressWorkCollection:HandlePressWorkCollection,
+    HandlePlotsizeExpansion:HandlePlotsizeExpansion
 };
 

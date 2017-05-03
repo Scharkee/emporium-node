@@ -17,21 +17,21 @@ var mysql = require('mysql');
 var bcrypt = require('bcrypt');
 
 var connectionpool = mysql.createPool({
-connectionlimit: 10,
-host: 'localhost',
-user: 'emporium-node',
-password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-database: 'emporium'
+    connectionlimit: 10,
+    host: 'localhost',
+    user: 'emporium-node',
+    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
+    database: 'emporium'
 });
 
 //TODO: DONT CHANGE LOCALHOSTS INTO MY IP, change unity SOCKET node server IP.
 
 var connectionpool_tiles = mysql.createPool({
-connectionlimit: 10,
-host: 'localhost',
-user: 'emporium-node',
-password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-database: 'emporium_users'
+    connectionlimit: 10,
+    host: 'localhost',
+    user: 'emporium-node',
+    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
+    database: 'emporium_users'
 });
 
 var clientCount = [];
@@ -47,7 +47,7 @@ var UserDollars;
 var UserPlotSize;
 var UserLastOnline;
 
-var chance = new Chance();
+
 
 //preliminarus checkas del duplicate prisijungimu.
 
@@ -101,7 +101,7 @@ socket.on("CHECK_LOGIN", function (data) {
 
 socket.on("CREATE_USER", function (data) {
 
- db.CreateUser(data);
+   db.CreateUser(data);
 
 });
 
@@ -116,9 +116,9 @@ socket.on("GET_STATS", function (data) {
 
     }).catch(function(){
 
-       console.error("error caughte");
+     console.error("error caughte");
 
-    });
+ });
 
 });
 
@@ -136,9 +136,9 @@ socket.on("GET_TILE_DATA", function (data) {//tile information function
 
     }).catch(function(){
 
-       console.error("error caught @ tiledata");
+     console.error("error caught @ tiledata");
 
-    });
+ });
 
 
 });
@@ -153,9 +153,9 @@ socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
 
     }).catch(function(){
 
-       console.error("error caught @ tile info");
+     console.error("error caught @ tile info");
 
-    });
+ });
 
 
     db.GetInventory(data).then(function(data){
@@ -165,7 +165,7 @@ socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
 
     }).catch(function(){
 
-            console.error("error caught @ inventory info");
+        console.error("error caught @ inventory info");
 
     });
 
@@ -178,33 +178,15 @@ socket.on("BUY_TILE", function (data) {//tile purchase function
 
     db.HandleTilePurchase(data).then(function(data){
 
-        switch(data.status){
 
+        socket.emit(data.call,  data.content );
 
-            case 1:
-
-            socket.emit("BUILD_TILE", data.data);
-
-            break;
-
-            case 2:
-
-            socket.emit("NO_FUNDS",  data.data);
-
-            break;
-
-            case 3:
-
-            socket.emit("UPGRADE_TILE",  data.data );
-
-            break;
-        }
 
     }).catch(function(){
 
-       console.error("error caught @ tile buy");
+     console.error("error caught @ tile buy");
 
-    });
+ });
 
 
 });
@@ -220,15 +202,12 @@ socket.on("SELL_TILE", function (data) {//tile purchase function
 
     }).catch(function(){
 
-       console.error("error caught @ tile sale");
+     console.error("error caught @ tile sale");
 
-    });
+ });
 
 
 });
-
-
-
 
 
 socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
@@ -240,15 +219,12 @@ socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
 
     }).catch(function(){
 
-       console.error("error caught @ tile work assignment");
+     console.error("error caught @ tile work assignment");
 
-    });
+ });
 
-
- 
 
 });
-
 
 
 socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
@@ -261,9 +237,9 @@ socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
 
     }).catch(function(){
 
-       console.error("error caught @ produce sale");
+     console.error("error caught @ produce sale");
 
-    });
+ });
 
 
 
@@ -291,8 +267,6 @@ socket.on("CLIENT_DATA", function (data) {
 });
 
 
-
-
 socket.on("DISCONNECT", function (data) {
 
     socket.disconnect();
@@ -301,121 +275,19 @@ socket.on("DISCONNECT", function (data) {
 
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////GAME FUNCTIONS/////////////////////////////////0_0///
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 socket.on("VERIFY_COLLECT_TILE", function (data) {
 
+    db.HandleTileCollect(data).then(function(data){
 
-    var username = data.Uname;
-    var tileID = data.TileID;
-    var tileProgAmount;
-    var tileName;
-    var tileGrowthStart;
-    var singleUse;
-    var tileCount;
-
-    var tileProduceName;
-    var tileProduceRandomRange1;
-    var tileProduceRandomRange2;
+        socket.emit(data.call, data.content);
 
 
-    connectionpool_tiles.getConnection(function (err, connectionT) {
+    }).catch(function(){
 
-        connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
-            if (err) throw err;
+     console.error("error caught @ tile collection");
 
-            tileName = rows[0].NAME;
-            tileGrowthStart = rows[0].START_OF_GROWTH;
-            tileCount = rows[0].COUNT;
-
-            connectionpool.getConnection(function (err, connection) {
-
-                connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
-
-                    tileProgAmount = rows[0].PROG_AMOUNT;
-
-                    tileProduceName = rows[0].TILEPRODUCENAME;
-                    tileProduceRandomRange1 = rows[0].TILEPRODUCERANDOM1;
-                    tileProduceRandomRange2 = rows[0].TILEPRODUCERANDOM2;
-                    singleUse = rows[0].SINGLE_USE;
-
-
-
-
-                    var prog = Number(tileGrowthStart) + tileProgAmount;   //FIXME: Number() because of varchar in MYSQL
-
-                    if (UnixTime() >= prog) {//Resetting tile progress and adding items to inventory
-
-                        var randProduce = chance.floating({ min: tileProduceRandomRange1, max: tileProduceRandomRange2 }).toFixed(2); //randomized produce kiekis
-
-
-
-                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
-                            if (err) throw err;
-
-
-                            console.log(rows);
-                            var newProduceAmount = rows[0][tileProduceName] + Number(randProduce) * tileCount;
-                            var post = {};
-                            post[tileProduceName] = newProduceAmount;
-
-
-
-                            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
-                                if (err) throw err;
-
-                            });
-                            console.log(newProduceAmount);
-
-                            if (singleUse === 1) {
-
-                                connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, tileID], function (err, rows, fields) {
-                                    if (err) throw err;
-
-                                });
-
-                            } else {
-                                socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime().toString(), currentProduceAmount: newProduceAmount, harvestAmount: Number(randProduce) * tileCount }); //cliente resettinamas tile growth.
-
-
-                            }
-
-                        });
-
-
-                        connectionT.query('UPDATE ?? SET START_OF_GROWTH = ? WHERE ID = ?', [username, UnixTime(), tileID], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
-                            if (err) throw err;
-
-                        });
-
-
-                    } else {
-
-                        console.log("=====================harvest not allowed=======================");
-                        //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
-
-
-                    }
-
-                });
-
-                connection.release();
-
-            });
-
-
-
-
-        });
-
-
-        connectionT.release();
     });
-
-
 
 
 });
@@ -425,144 +297,35 @@ socket.on("VERIFY_COLLECT_TILE", function (data) {
 
 socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
 
-    //ALSO skaiciukas pakyla nuo medzio, kiek harvestinta KG vaisiu. 
+    db.HandlePressWorkCollection(data).then(function(data){
+
+        socket.emit(data.call, data.content);
 
 
-    var username = data.Uname;
-    var tileID = data.TileID;
-    var tileProgAmount;
-    var tileName;
-    var tileGrowthStart;
-    var tileWorkAmount;
+    }).catch(function(){
 
-
-
-    connectionpool_tiles.getConnection(function (err, connectionT) {
-
-        connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
-            if (err) throw err;
-
-            tileName = rows[0].NAME;
-            tileGrowthStart = rows[0].START_OF_GROWTH;
-            tileWorkAmount = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
-            tileWorkName = rows[0].WORK_NAME;
-
-            connectionpool.getConnection(function (err, connection) {
-
-                connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
-
-                    PressSpeed = rows[0].PROG_AMOUNT / 100;
-
-                    PressProduceName = rows[0].TILEPRODUCENAME;
-                    PressEfficiency = rows[0].TILEPRODUCERANDOM1 / 100;
-
-                    console.log(tileWorkName + "_" + PressProduceName);
-
-
-                    var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed;   //FIXME: Number() because of varchar in MYSQL
-
-                    if (UnixTime() >= prog) {
-                        //Resetting tile progress and adding items to inventory
-
-                        var JuiceProduceAmount = tileWorkAmount * PressEfficiency;
-
-                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
-                            if (err) throw err;
-
-
-                            console.log(rows);
-                            var newProduceAmount = rows[0][tileWorkName + "_" + PressProduceName] + Number(JuiceProduceAmount);
-
-                            var post = {};
-                            post[tileWorkName + "_" + PressProduceName] = newProduceAmount;
-
-
-                            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
-                                if (err) throw err;
-
-                            });
-
-
-                            socket.emit("RESET_TILE_GROWTH", { tileID: tileID, unixBuffer: UnixTime(), currentProduceAmount: newProduceAmount }); //cliente resettinamas tile growth.
-
-
-                        });
-                        var post1 = { BUILDING_CURRENT_WORK_AMOUNT: 0, WORK_NAME: "", START_OF_GROWTH: 0 };
-
-                        connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post1, tileID], function (err, rows, fields) { // resetinam progresa
-                            if (err) throw err;
-
-                        });
-
-                    } else {
-
-                        console.log("=====================harvest not allowed=======================");
-                        //DISCREPENCY. Shouldnt be even able to call this function from client if the tile isnt grown.
-
-
-                    }
-
-                });
-                connection.release();
-            });
-
-        });
-
-        connectionT.release();
+     console.error("error caught @ press work collection");
 
     });
-
-
 
 
 });
 
 socket.on("VERIFY_EXPAND_PLOTSIZE", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
 
-    console.log("Client No. " + clientCount.indexOf(socket) + " is upgrading his plotsize "); //add from what plotsize to what plotsize later
+    db.HandlePlotsizeExpansion(data).then(function(data){
+
+        socket.emit(data.call, data.content);
 
 
+    }).catch(function(){
 
-    var username = data.Uname;
-    var DBdollars;
-    var currentPlotsize;
-
-    console.log(username);
-
-
-    connectionpool.getConnection(function (err, connection) {
-
-        connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
-            if (err) throw err;
-
-            DBdollars = rows[0].dollars;
-            currentPlotsize = rows[0].plotsize;
-            console.log(DBdollars + " vs " + Math.pow(10, currentPlotsize));
-
-            if (DBdollars >= Math.pow(10, currentPlotsize - 1)) { //uztenka praplesti plotui
-                post = { plotsize: currentPlotsize + 1 , dollars:(DBdollars-Math.pow(10, currentPlotsize))};
-
-
-                connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-                    if (err) throw err;
-
-
-                });
-
-                socket.emit("UPDATE_PLOT_SIZE", { newplot: currentPlotsize + 1 });
-
-            } else {
-                var missing = Math.pow(10, currentPlotsize - 1) - DBdollars;
-                socket.emit("NO_FUNDS", { missing: missing });
-
-            }
-        });
-
-
-        connection.release();
-
+     console.error("error caught @ plotsize expansion");
 
     });
+
+  
+
 
 });
 
@@ -600,18 +363,18 @@ socket.on("disconnect", function (data) {
    //halp or fix later
    try{
 
-        
-        console.log("user  " + currentConnections[socket.id].name + " dc'd");
+
+    console.log("user  " + currentConnections[socket.id].name + " dc'd");
         clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
         delete currentConnections[socket.id];
 
         UpdateLastloggedIn(currentConnections[socket.id].name);
 
-   
-   }catch(err){
-  
 
-   }
+    }catch(err){
+
+
+    }
 
 
 
@@ -626,57 +389,57 @@ socket.on("disconnect", function (data) {
 
 function TakeAwayMoney(money, lostmoney, username) {
 
-connectionpool.getConnection(function (err, connection) {
-    var remaining = money - lostmoney;
-    var post = { dollars: remaining };
+    connectionpool.getConnection(function (err, connection) {
+        var remaining = money - lostmoney;
+        var post = { dollars: remaining };
 
-    connection.query('UPDATE stats SET ? WHERE username = ? ', [post, username], function (err, rows, fields) {
-        if (err) throw err;
+        connection.query('UPDATE stats SET ? WHERE username = ? ', [post, username], function (err, rows, fields) {
+            if (err) throw err;
 
+        });
+        connection.release();
     });
-    connection.release();
-});
 }
 
 
 function AddMoney(addedmoney, username) {
 
-connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function (err, connection) {
 
-    connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
-        if (err) throw err;
-
-
-        var DBdollars = rows[0].dollars;
-        var newmoney = DBdollars + addedmoney;
-        var post = { dollars: newmoney };
-
-
-        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
             if (err) throw err;
 
+
+            var DBdollars = rows[0].dollars;
+            var newmoney = DBdollars + addedmoney;
+            var post = { dollars: newmoney };
+
+
+            connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                if (err) throw err;
+
+            });
+
+
+
         });
-
-
-
+        connection.release();
     });
-    connection.release();
-});
 }
 
 
 function TakeAwayItem(item, amount, username) {
 
-connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function (err, connection) {
 
-    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-        if (err) throw err;
-
-
+        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+            if (err) throw err;
 
 
-        var remaining = rows[0][item] - amount;
-        var post = {};
+
+
+            var remaining = rows[0][item] - amount;
+            var post = {};
         post[item] = remaining;//FIXME
 
         console.log(post);
@@ -692,23 +455,23 @@ connectionpool.getConnection(function (err, connection) {
 
     });
 
-    connection.release();
-});
+        connection.release();
+    });
 }
 
 
 function UpdateLastloggedIn(username) {
 
-connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function (err, connection) {
 
-    var post = { lastonline: UnixTime() };
-    connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-        if (err) throw err;
+        var post = { lastonline: UnixTime() };
+        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+            if (err) throw err;
 
+        });
+
+        connection.release();
     });
-
-    connection.release();
-});
 }
 
 
@@ -717,18 +480,18 @@ connectionpool.getConnection(function (err, connection) {
 
 function UnixTime() {
 
-var unix = Math.round(+new Date() / 1000);
-return unix;
+    var unix = Math.round(+new Date() / 1000);
+    return unix;
 }
 
 
 
 function CleanInput(a, mode) {
-switch (mode) {
-    case 1:
-    var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+    switch (mode) {
+        case 1:
+        var b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
-    break;
+        break;
     case 2: //kitas refinery mode
         //..code
         break;
