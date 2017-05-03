@@ -13,7 +13,6 @@ app.set('port', 2333);
 var clients = [];
 const saltRounds = 10;
 
-var async = require('async');
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
 
@@ -535,7 +534,7 @@ io.on("connection", function (socket) {
 
                             if (rows[0][assignedWorkName] >= assignedWorkAmmount) {
 
-                                console.log(rows[0][assignedWorkName]);
+                                console.log(rows[0][assignedWorkName] +" is the name");
 
                                 var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
 
