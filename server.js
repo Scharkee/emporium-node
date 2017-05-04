@@ -329,6 +329,24 @@ io.on("connection", function (socket) {
 
     });
 
+    socket.on("GET_PRICES", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+
+        db.HandlePriceRetrieval(data).then(function (data) {
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ price retrieval");
+
+        });
+
+
+
+
+    });
+
     socket.on("VERIFY_ACTION", function (data) {// misc action verifyinimo funkcija.
         //every misc action goes here by switch/case(fertilising, bleh bleh.)
 

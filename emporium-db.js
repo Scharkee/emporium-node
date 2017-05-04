@@ -1109,6 +1109,36 @@ function HandlePlotsizeExpansion(data, callback) {
     });
 }
 
+function HandlePriceRetrieval(data, callback) {
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+
+
+
+        connectionpool.getConnection(function (err, connection) {
+
+            connection.query('SELECT * FROM prices', function (err, rows, fields) {
+                if (err) {
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                }
+
+
+                resolve({call:"RECEIVE_PRICES",content:{rows}});
+
+
+
+            connection.release();
+            return callback(null);
+
+
+        });
+    });
+
+        });
+}
+
 
 
 function CleanInput(a, mode) {
@@ -1279,6 +1309,7 @@ module.exports = {
     HandleProduceSale: HandleProduceSale,
     HandleTileCollect: HandleTileCollect,
     HandlePressWorkCollection: HandlePressWorkCollection,
-    HandlePlotsizeExpansion: HandlePlotsizeExpansion
+    HandlePlotsizeExpansion: HandlePlotsizeExpansion,
+    HandlePriceRetrieval:HandlePriceRetrieval
 };
 
