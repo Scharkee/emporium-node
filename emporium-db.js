@@ -678,7 +678,7 @@ function HandleProduceSale(data, callback) {
 
             //waterfall this shit
 
-            console.log(data);
+           
 
 
 
@@ -848,7 +848,7 @@ function HandleTileCollect(data, callback) {
 
 
 
-                                console.log(rows);
+                             
                                 var newProduceAmount = rows[0][tileProduceName] + Number(randProduce) * tileCount;
                                 var post = {};
                                 post[tileProduceName] = newProduceAmount;
@@ -987,7 +987,7 @@ function HandlePressWorkCollection(data, callback) {
 
 
 
-                                console.log(rows);
+                           
                                 var newProduceAmount = rows[0][tileWorkName + "_" + PressProduceName] + Number(JuiceProduceAmount);
 
                                 var post = {};
