@@ -1140,6 +1140,39 @@ function HandlePriceRetrieval(data, callback) {
 }
 
 
+function HandleBugReportSubmission(data, callback) {
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+
+
+
+        connectionpool.getConnection(function (err, connection) {
+
+        	post={REPORT:data.report};
+
+            connection.query('INSERT INTO bugreports SET ?',post, function (err, rows, fields) {
+                if (err) {
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                }
+
+
+                resolve({call:"RECEIVED_BUGREPORT",content:{status:1}});
+
+
+
+            connection.release();
+            return callback(null);
+
+
+        });
+    });
+
+        });
+}
+
+
 
 function CleanInput(a, mode) {
     switch (mode) {
@@ -1310,6 +1343,7 @@ module.exports = {
     HandleTileCollect: HandleTileCollect,
     HandlePressWorkCollection: HandlePressWorkCollection,
     HandlePlotsizeExpansion: HandlePlotsizeExpansion,
-    HandlePriceRetrieval:HandlePriceRetrieval
+    HandlePriceRetrieval:HandlePriceRetrieval,
+    HandleBugReportSubmission:HandleBugReportSubmission
 };
 
