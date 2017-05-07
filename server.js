@@ -99,9 +99,11 @@ io.on("connection", function (socket) {
     });
 
 
-    socket.on("CREATE_USER", function (data) {
 
-        db.CreateUser(data);
+
+    socket.on("REGISTER_USER", function (data) {
+
+        db.RegisterUser(data);
 
     });
 

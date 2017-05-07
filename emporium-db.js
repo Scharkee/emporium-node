@@ -4,7 +4,7 @@ var Chance = require('chance');
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
 
-//Cia defininami visi reikalingi MYSQL pools
+//MYSQL reikalingi loginai
 
 var connectionpool = mysql.createPool({
     connectionlimit: 10,
@@ -22,12 +22,8 @@ var connectionpool_tiles = mysql.createPool({
     database: 'emporium_users'
 });
 
-//konstantos
+//salt roundai hashui
 const saltRounds = 10;
-
-
-
-
 
 function ParseLogin(data, callback) {
 
@@ -37,11 +33,8 @@ function ParseLogin(data, callback) {
 
     return new Promise(function (resolve, reject) {
 
-
-        var userpass = CleanInput(data.Upass, 1);
         var username = CleanInput(data.Uname, 1);
-
-
+        var userpass=data.Upass;
 
         if (userpass !== data.Upass || username !== data.Uname) {
             //   socket.emit("DISCREPANCY", { reasonString: "Discrepancy detected in input. Please try again. Shutting off...", action: 1 });   gamealerts on login screen dont work i dont think;
@@ -74,13 +67,13 @@ function ParseLogin(data, callback) {
 
                     bcrypt.compare(userpass, pass, function (err, res) {
 
-                        if (res === true) {
+                        if (res === true) {//praleidziam
 
                             resolve({ status: 1 });
 
                             //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
 
-                        } else if (res === false) {
+                        } else if (res === false) { //negeras password
 
                             resolve({ status: 0 });
 
@@ -109,7 +102,9 @@ function ParseLogin(data, callback) {
     })
 }
 
-function CreateUser(data, callback) {
+
+
+function RegisterUser(data, callback) {
 
 
 
@@ -119,16 +114,22 @@ function CreateUser(data, callback) {
 
     var username = data.Uname;
     var userpass = data.Upass;
+    var email = data.Email;
+
+
+    console.log(username+" + "+userpass+" + "+email);
+
 
 
 
     bcrypt.hash(userpass, saltRounds, function (err, hash) {
 
 
-        var post = { username: username, password: hash };
+        var post = { username: username, password: hash ,email:email,email_confirmed:0};
 
-        console.log("creating new user for " + username);
+        console.log("creating new user for " + username+" hash is"+hash);
 
+ 		console.log(hash);
 
 
         connectionpool.getConnection(function (err, connection) {
@@ -136,11 +137,10 @@ function CreateUser(data, callback) {
             connection.query('INSERT INTO users SET ?', post, function (err, result) {
 
                 if (err) {
-                    connection.release();
-                    return callback(err);
+                   throw err;
                 }
 
-                // And done with the connection.
+             //send out cohfirmation email to user
 
 
             });
@@ -150,7 +150,12 @@ function CreateUser(data, callback) {
 
     });
 
+
+
+
+
 }
+
 
 function GetStats(data, callback) {
 
@@ -1180,8 +1185,8 @@ function CleanInput(a, mode) {
             var b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
             break;
-        case 2: //kitas refinery mode
-            //..code
+        case 2: //kitas refinery mode 
+             var b = a.replace(/[^a-zA-Z0-9]/gi, '');
             break;
 
         case 3: // trecias refinery mode
@@ -1193,7 +1198,7 @@ function CleanInput(a, mode) {
             break;
     }
 
-    return a;
+    return b;
 }
 
 
@@ -1331,7 +1336,6 @@ function UnixTime() {
 module.exports = {
 
     ParseLogin: ParseLogin,
-    CreateUser: CreateUser,
     GetStats: GetStats,
     GetTiles: GetTiles,
     GetTileData: GetTileData,
@@ -1344,6 +1348,7 @@ module.exports = {
     HandlePressWorkCollection: HandlePressWorkCollection,
     HandlePlotsizeExpansion: HandlePlotsizeExpansion,
     HandlePriceRetrieval:HandlePriceRetrieval,
-    HandleBugReportSubmission:HandleBugReportSubmission
+    HandleBugReportSubmission:HandleBugReportSubmission,
+    RegisterUser:RegisterUser
 };
 
