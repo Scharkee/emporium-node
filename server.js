@@ -174,6 +174,23 @@ io.on("connection", function (socket) {
 
     });
 
+socket.on("FORGOT_PASS", function (data) {//tile purchase function
+
+        db.ForgotPass(data).then(function (data) {
+
+
+            socket.emit(data.call, data.content);
+
+
+        }).catch(function () {
+
+            console.error("error caught @ password reset");
+
+        });
+
+
+    });
+
 
 
     socket.on("BUY_TILE", function (data) {//tile purchase function
