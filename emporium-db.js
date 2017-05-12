@@ -456,7 +456,7 @@ function HandleTileAssignWork(data, callback) {
                 tileCurrentWork = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
 
                 if (tileCurrentWork !== 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
-                    //send discrepency
+                    resolve({call: "DISCREPANCY", content: { reasonString: "Timing discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                 } else {
                     connectionpool.getConnection(function (err, connection) {
                         connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
@@ -484,6 +484,8 @@ function HandleTileAssignWork(data, callback) {
                                 TakeAwayItem(assignedWorkName, assignedWorkAmmount, username);
 
                                 resolve({ tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
+                            }else{
+                                resolve({call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                             }
                         });
                         connection.release();
