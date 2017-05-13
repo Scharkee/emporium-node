@@ -5,8 +5,17 @@ var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 var Chance = require('chance');
 var db = require('./emporium-db.js');
+var web = require('./webhandler.js');
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+var async = require('async');
+
+
+
 
 app.set('port', 2333);
+
+app.use(web);
 
 var clients = [];
 
@@ -30,6 +39,44 @@ var connectionpool_tiles = mysql.createPool({
     password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
     database: 'emporium_users'
 });
+
+passport.use(new LocalStrategy(function(username, password, done) {
+    var data={username:username,password:password,done:done};
+
+    db.ParseLogin(data).then(function (data) {
+        var status = data.status;
+        if(status==2){ //nera userio
+
+            return done(null, false, { message: 'No user with that username.' });
+
+
+        }else if(status==1){ //praleidziam
+
+            return done(null, user);
+
+
+        }else if(status==0){ //blogas pass
+
+            return done(null, false, { message: 'Incorrect password.' });
+
+        }
+    }).catch(function () {
+        return done(err);
+        console.error("error caught");
+    });
+
+}));
+
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
+
 
 var clientCount = [];
 var currentConnections = {};
@@ -61,11 +108,12 @@ io.on("connection", function (socket) {
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
     socket.on("CHECK_LOGIN", function (data) {
-        var data = data;
 
-        db.ParseLogin(data).then(function (data) {
-            var status = data.status;
-            socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
+
+
+      db.ParseLogin(data).then(function (data) {
+        var status = data.status;
+        socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
         }).catch(function () {
             console.error("error caught");
         });

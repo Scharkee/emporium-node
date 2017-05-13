@@ -3,6 +3,8 @@ var router = express.Router();
 var Chance = require('chance');
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
+var crypto = require('crypto');
+var async = require('async');
 
 //MYSQL reikalingi loginai
 
@@ -81,6 +83,62 @@ function ParseLogin(data, callback) {
     })
 }
 
+
+function ParsePasswordResetRequest(data, callback) {
+    callback = callback || function () { }
+
+    return new Promise(function (resolve, reject) {
+        var username = CleanInput(data.Uname, 1);
+        var userpass = data.Upass;
+
+        if (userpass !== data.Upass || username !== data.Uname) {
+            //   socket.emit("DISCREPANCY", { reasonString: "Discrepancy detected in input. Please try again. Shutting off...", action: 1 });   gamealerts on login screen dont work i dont think;
+        } else {//praleidziam
+        }
+
+        var passStatus;
+
+        var sqlq = 'SELECT password FROM users WHERE username = ?';
+
+        connectionpool.getConnection(function (err, connection) {
+            // Use the connection
+            connection.query(sqlq, username, function (err, rows, fields) {
+                if (err) {
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                }
+                if (!rows.length) {
+                    resolve({ status: 2 });
+
+                    //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
+                } else {
+                    var pass = rows[0].password;
+
+                    bcrypt.compare(userpass, pass, function (err, res) {
+                        if (res === true) {//praleidziam
+                            resolve({ status: 1 });
+
+                            //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
+                        } else if (res === false) { //negeras password
+                            resolve({ status: 0 });
+
+                            //  socket.emit("PASS_CHECK_CALLBACK", { passStatus: 0 });
+                        }
+                    });
+                }
+
+                //else if(userpass == rows[0].password && loggedIn= true (is vieno acc tik is vienos vietos galima prisijungti))
+
+                //TODO: dupe account loggedin function that callbacks  PASS_CHECK_CALLBACK
+            });
+            connection.release();
+            return callback(null);
+        });
+    })
+}
+
+
 function ForgotPass(data, callback) {
     // no default values in JS yet
     // make sure callback is initialized
@@ -88,6 +146,8 @@ function ForgotPass(data, callback) {
 
     return new Promise(function (resolve, reject) {
         var email = data.Email;
+
+
 
         connectionpool.getConnection(function (err, connection) {
             // Use the connection
@@ -103,10 +163,35 @@ function ForgotPass(data, callback) {
 
                     //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
                 } else {
-                    resolve({ call: "FORGOT_PASSWORD_STATUS", content: { status: 1 } });
+
+                    async.waterfall([
+                        function(done) {
+                          crypto.randomBytes(20, function(err, buf) {
+                            var token = buf.toString('hex');
+                            done(err, token);
+                        });
+                      },function(done) {
+
+                        var post={reset_token:token,reset_date:UnixTime()+3600};
+
+                        connection.query('UPDATE users SET ? WHERE email = ?', [ post, email], function (err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
+
+                        });
+                    }], function(err) {
+                        if (err) return next(err);
+
+                    });
 
                     //TODO: send email to reset password;
                     //TODO: generate token for password reset, and allow accessing it via webhandler.js (GET)
+
+                   resolve({ call: "FORGOT_PASSWORD_STATUS", content: { status: 1 } });
+
                 }
             });
             connection.release();
@@ -992,5 +1077,6 @@ module.exports = {
     HandlePriceRetrieval: HandlePriceRetrieval,
     HandleBugReportSubmission: HandleBugReportSubmission,
     RegisterUser: RegisterUser,
-    ForgotPass: ForgotPass
+    ForgotPass: ForgotPass,
+    ParsePasswordResetRequest:ParsePasswordResetRequest,
 };
