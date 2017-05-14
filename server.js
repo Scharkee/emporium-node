@@ -10,9 +10,6 @@ var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 var async = require('async');
 
-
-
-
 app.set('port', 2333);
 
 app.use(web);
@@ -40,43 +37,33 @@ var connectionpool_tiles = mysql.createPool({
     database: 'emporium_users'
 });
 
-passport.use(new LocalStrategy(function(username, password, done) {
-    var data={username:username,password:password,done:done};
+passport.use(new LocalStrategy(function (username, password, done) {
+    var data = { username: username, password: password, done: done };
 
     db.ParseLogin(data).then(function (data) {
         var status = data.status;
-        if(status==2){ //nera userio
-
+        if (status == 2) { //nera userio
             return done(null, false, { message: 'No user with that username.' });
-
-
-        }else if(status==1){ //praleidziam
-
+        } else if (status == 1) { //praleidziam
             return done(null, user);
-
-
-        }else if(status==0){ //blogas pass
-
+        } else if (status == 0) { //blogas pass
             return done(null, false, { message: 'Incorrect password.' });
-
         }
     }).catch(function () {
         return done(err);
         console.error("error caught");
     });
-
 }));
 
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
+passport.serializeUser(function (user, done) {
+    done(null, user.id);
 });
 
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
-  });
+passport.deserializeUser(function (id, done) {
+    User.findById(id, function (err, user) {
+        done(err, user);
+    });
 });
-
 
 var clientCount = [];
 var currentConnections = {};
@@ -108,12 +95,10 @@ io.on("connection", function (socket) {
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
     socket.on("CHECK_LOGIN", function (data) {
+        db.ParseLogin(data).then(function (data) {
+            var status = data.status;
 
-    
-      db.ParseLogin(data).then(function (data) {
-        var status = data.status;
-
-        socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
+            socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
         }).catch(function () {
             console.error("error caught");
         });
@@ -128,7 +113,7 @@ io.on("connection", function (socket) {
     socket.on("GET_STATS", function (data) {
         console.log("asking for stats");
         db.GetStats(data).then(function (data) {
-           console.log("asdasdasd");
+            console.log("asdasdasd");
 
             socket.emit("RETRIEVE_STATS", data);
         }).catch(function () {
