@@ -109,10 +109,10 @@ io.on("connection", function (socket) {
 
     socket.on("CHECK_LOGIN", function (data) {
 
-
-
+    
       db.ParseLogin(data).then(function (data) {
         var status = data.status;
+
         socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
         }).catch(function () {
             console.error("error caught");
@@ -126,7 +126,10 @@ io.on("connection", function (socket) {
     //GAME STAT RETRIEVAL CALLS
 
     socket.on("GET_STATS", function (data) {
+        console.log("asking for stats");
         db.GetStats(data).then(function (data) {
+           console.log("asdasdasd");
+
             socket.emit("RETRIEVE_STATS", data);
         }).catch(function () {
             console.error("error caughte");
@@ -136,6 +139,7 @@ io.on("connection", function (socket) {
     //make function that manually pings for response, if response arrives, push lastloggedin to server \/
 
     socket.on("GET_TILE_DATA", function (data) {//tile information function
+        console.log("asking for tiles");
         db.GetTileData(data).then(function (data) {
             socket.emit("RECEIVE_TILES", data);
         }).catch(function () {
@@ -144,6 +148,7 @@ io.on("connection", function (socket) {
     });
 
     socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
+        console.log("asking for GET_TILE_INFORMATION");
         db.GetTiles(data).then(function (data) {
             socket.emit("RECEIVE_TILE_INFORMATION", data);
         }).catch(function () {
@@ -220,6 +225,14 @@ io.on("connection", function (socket) {
             socket.emit(data.call, data.content);
         }).catch(function () {
             console.error("error caught @ tile collection");
+        });
+    });
+
+    socket.on("GET_TRANSPORT_QUEUES", function (data) {
+        db.GetTransportQueues(data).then(function (data) {
+            socket.emit(data.call, data.content);
+        }).catch(function () {
+            console.error("error caught @ transport queues");
         });
     });
 

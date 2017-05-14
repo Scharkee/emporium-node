@@ -48,6 +48,7 @@ function ParseLogin(data, callback) {
         connectionpool.getConnection(function (err, connection) {
             // Use the connection
             connection.query(sqlq, username, function (err, rows, fields) {
+
                 if (err) {
                     reject(err);
                     connection.release();
@@ -55,6 +56,7 @@ function ParseLogin(data, callback) {
                 }
                 if (!rows.length) {
                     resolve({ status: 2 });
+
 
                     //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
                 } else {
@@ -190,7 +192,7 @@ function ForgotPass(data, callback) {
                     //TODO: send email to reset password;
                     //TODO: generate token for password reset, and allow accessing it via webhandler.js (GET)
 
-                   resolve({ call: "FORGOT_PASSWORD_STATUS", content: { status: 1 } });
+                    resolve({ call: "FORGOT_PASSWORD_STATUS", content: { status: 1 } });
 
                 }
             });
@@ -284,6 +286,55 @@ function GetTileData(data, callback) {
 
                 resolve({ rows });
             });
+            connection.release();
+            return callback(null);
+        });
+    });
+}
+
+
+function GetTransportQueues(data, callback) {
+    callback = callback || function () { }
+
+    return new Promise(function (resolve, reject) {
+        var username = data.Uname;
+
+        connectionpool_tiles.getConnection(function (err, connection) {
+
+
+            async.waterfall([
+                function(done) {
+
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `AMOUNT` FLOAT(50) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname+"_transport", function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+                    });
+
+                    done(null);
+                },function(done) {
+
+                    connection.query('SELECT * FROM ??', data.Uname+"_transport", function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        resolve({call:"RECEIVE_TRANSPORT_QUEUE",content:{rows} });
+                    });
+
+
+
+                    done(null);
+                }], function(err) {
+                    if (err) return next(err);
+
+                });
+
+
             connection.release();
             return callback(null);
         });
@@ -462,11 +513,11 @@ function HandleTilePurchase(data, callback) {
 
                     connectionT.release();
                 });
-            });
-            connection.release();
-            return callback(null);
-        });
-    });
+});
+connection.release();
+return callback(null);
+});
+});
 }
 
 function HandleTileSale(data, callback) {
@@ -765,10 +816,10 @@ function HandleTileCollect(data, callback) {
                 });
             });
 
-            connectionT.release();
-            return callback(null);
-        });
-    });
+connectionT.release();
+return callback(null);
+});
+});
 }
 
 function HandlePressWorkCollection(data, callback) {
@@ -943,29 +994,29 @@ function HandleBugReportSubmission(data, callback) {
 function CleanInput(a, mode) {
     switch (mode) {
         case 1:
-            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+        var b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
-            break;
+        break;
         case 2: //kitas refinery mode
-            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
-            break;
+        var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+        break;
 
         case 3: // trecias refinery mode
             //code
             break;
 
-        default:
+            default:
             // ....
             break;
+        }
+
+        return b;
     }
 
-    return b;
-}
+    function InsertDefaultStats(username, dollars, lastonline, plotsize) {
+        var post = { username: username, dollars: dollars, lastonline: lastonline, plotsize: plotsize };
 
-function InsertDefaultStats(username, dollars, lastonline, plotsize) {
-    var post = { username: username, dollars: dollars, lastonline: lastonline, plotsize: plotsize };
-
-    console.log("inserting default stats into DB");
+        console.log("inserting default stats into DB");
     connectionpool.getConnection(function (err, connection) { // starting a stats table entry for new client
         // Use the connection
         connection.query('INSERT INTO stats SET ?', post, function (err, rows, fields) {
@@ -1079,4 +1130,5 @@ module.exports = {
     RegisterUser: RegisterUser,
     ForgotPass: ForgotPass,
     ParsePasswordResetRequest:ParsePasswordResetRequest,
+    GetTransportQueues:GetTransportQueues
 };
