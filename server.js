@@ -188,7 +188,7 @@ io.on("connection", function (socket) {
     });
 
     socket.on("VERIFY_SOLD_PRODUCE_STORE", function (data) {//tile purchase function
-        db.HandleProduceSaleJobStorage(data).then(function (data) {
+        db.HandleProduceSaleJobAssignment(data).then(function (data) {
             socket.emit(data.call, data.content);
         }).catch(function (err) {
             console.error(err);

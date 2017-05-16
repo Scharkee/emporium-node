@@ -9,7 +9,7 @@ var async = require('async');
 //MYSQL reikalingi loginai
 
 var connectionpool = mysql.createPool({
-    connectionlimit: 10,
+    connectionlimit: 100,
     host: 'localhost',
     user: 'emporium-node',
     password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
@@ -17,7 +17,7 @@ var connectionpool = mysql.createPool({
 });
 
 var connectionpool_tiles = mysql.createPool({
-    connectionlimit: 10,
+    connectionlimit: 100,
     host: 'localhost',
     user: 'emporium-node',
     password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
@@ -655,78 +655,97 @@ function HandleProduceSale(data, callback) {
         var rowsPricings;
         var post = {};
         var postMoney = {};
+        var saleDeser;
+        var job;
 
         connectionpool.getConnection(function (err, connection) {
-            async.waterfall([function (done) {
-                connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
-                    if (err) {
-                        reject(err);
-                        connection.release();
-                        return callback(err);
-                    }
-
-                    rowsPricings = rowsP;
-                    done(null);
-                });
-            }, function (done) {
-                connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rowsM, fields) { //getting dollars for adding money later
-                    if (err) {
-                        reject(err);
-                        connection.release();
-                        return callback(err);
-                    }
-
-                    postMoney = rowsM[0];
-                    done(null);
-                });
-            }, function (done) {
-                connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-                    if (err) {
-                        reject(err);
-                        connection.release();
-                        return callback(err);
-                    }
-
-                    for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
-                        if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
-                            resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
-                        } else {// viskas probs OK, sale allowed.
-                            post[data[i.toString() + "name"].toString()] = Number(rows[0][data[i + "name"]]) - Number(data[i + "amount"]); // naujas amountas paruosiamas postui i database.
-
-                            postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
-                            //paciam sale screen.( $/per kilograma)
+            connectionpool_tiles.getConnection(function (err, connectionT) {
+                async.waterfall([function (done) {
+                    connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function (err, rowse, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
                         }
-                    }
+                        job = rowse[0];
+                        saleDeser = JSON.parse(rowse[0].SALE); //LEFTOFF kazkur cia
 
-                    done(null);
-                });
-            }, function (done) {
-                connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-                    if (err) {
-                        reject(err);
+                        if (job.LENGTH_OF_TRANSPORTATION + job.START_OF_TRANSPORTATION < UnixTime()) { //patikrinimas, ar ne per anskti atsiunte JOB finisheri
+                            resolve({ call: "DISCREPANCY", content: { reasonString: "Job discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                        }
+                        done(null);
+                    });
+                }, function (done) {
+                    connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        rowsPricings = rowsP;
+                        done(null);
+                    });
+                }, function (done) {
+                    connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rowsM, fields) { //getting dollars for adding money later
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        postMoney = rowsM[0];
+                        done(null);
+                    });
+                }, function (done) {
+                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
+                            if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
+                                resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                            } else {// viskas probs OK, sale allowed.
+                                post[data[i.toString() + "name"].toString()] = Number(rows[0][data[i + "name"]]) - Number(data[i + "amount"]); // naujas amountas paruosiamas postui i database.
+
+                                postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
+                                //paciam sale screen.( $/per kilograma)
+                            }
+                        }
+
+                        done(null);
+                    });
+                }, function (done) {
+                    connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        done(null);
+                    });
+                }, function (done) {
+                    connection.query('UPDATE stats SET ? WHERE username = ?', [postMoney, username], function (err, rowsM, fields) { //adding all the monay
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        resolve({ call: "SALE_VERIFICATION", content: postMoney });
+
                         connection.release();
-                        return callback(err);
-                    }
-
-                    done(null);
+                        return callback(null);
+                        done(null);
+                    });
+                }], function (err) {
+                    console.log(err);
+                    if (err) return next(err);
                 });
-            }, function (done) {
-                connection.query('UPDATE stats SET ? WHERE username = ?', [postMoney, username], function (err, rowsM, fields) { //adding all the monay
-                    if (err) {
-                        reject(err);
-                        connection.release();
-                        return callback(err);
-                    }
-
-                    resolve({ call: "SALE_VERIFICATION", content: postMoney });
-
-                    connection.release();
-                    return callback(null);
-                    done(null);
-                });
-            }], function (err) {
-                console.log(err);
-                if (err) return next(err);
             });
         });
     });
@@ -738,8 +757,10 @@ function HandleProduceSaleJobAssignment(data, callback) {
         var username = data.Uname;
         var destination = data.Dest;
         var salesNum = data.salesNum;
-
+        var speed = data.TransportSpeed;
         var post = {};
+        var transport;
+        var totalWeight = 0;
 
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
@@ -755,24 +776,31 @@ function HandleProduceSaleJobAssignment(data, callback) {
                             if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                             } else {// viskas probs OK, sale allowed.(eina checkas tik del discrepancy. Siaip nieks nevyksta)
+                                totalWeight += Number(data[i + "amount"]);
                             }
                         }
+                        console.log("is viso vezama " + totalWeight);
 
                         // todo patvirtint tranportacijos buda + paiimt jo speed;
                         // transportSpeed = getTransportSpeed(data.Transport);
 
-                        getTransportSpeed(data.Transport).then(function (data) {
-                            transportSpeed = data.speed;
+                        getInfoAndVerifyTile(data.TransportID, data.Transport, username).then(function (rezz) {
+                            transport = rezz;
+
+                            if (totalWeight > transport.TILEPRODUCENAME * data.count) { //per daugg prikrauta is client
+                                console.log("lauziu1");
+                                resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                            }
+
+                            var sale = JSON.stringify(data);
+
+                            post = { DEST: destination, START_OF_TRANSPORTATION: UnixTime(), LENGTH_OF_TRANSPORTATION: transport[0].PROG_AMOUNT, SALE: sale, IndexInJobList: data.IndexInJobList };
+
+                            done(null);
                         }).catch(function (err) {
-                            console.error(err);
-                            resolve({ call: "DISCREPANCY", content: { reasonString: "Transport desynchronization. Shutting off...", action: 1 } });
+                            console.log("lauziu2");
+                            resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         });
-
-                        var sale = JSON.stringify(data);
-
-                        post = { DEST: destination, START_OF_TRANSPORTATION: UnixTime(), LENGTH_OF_TRANSPORTATION: transportSpeed, SALE: sale };
-
-                        done(null);
                     });
                 }, function (done) { //pushinam ta sale orderi faaar awaay i DB.
                     connectionT.query('INSERT INTO ?? SET ?', [username + "_transport", post], function (err, rows, fields) {
@@ -781,6 +809,8 @@ function HandleProduceSaleJobAssignment(data, callback) {
                             connection.release();
                             return callback(err);
                         }
+
+                        post.ID = rows.insertId;
 
                         resolve({ call: "SALE_JOB_VERIFICATION", content: { post } });
                         done(null);
@@ -1162,7 +1192,37 @@ function findValue(o, value) {
     return null;
 }
 
-function getTransportSpeed(transport) {
+function getInfoAndVerifyTile(ID, transport, username, callback) {
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        var speed;
+        var count;
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+            connectionT.query('SELECT * FROM ?? WHERE NAME = ? AND ID = ?', [username, transport, ID], function (err, rows, fields) {
+                if (err) throw err;
+                if (!rows) {
+                    reject(false);
+                } else {
+                    count = rows.COUNT;
+                    connectionpool.getConnection(function (err, connection) {
+                        connection.query('SELECT * FROM buildings WHERE NAME = ?', [transport], function (err, rows, fields) {
+                            if (err) throw err;
+                            if (!rows) {
+                                reject(false);
+                            } else {
+                                console.log(rows);
+                                rows.count = count;
+                                resolve(rows);
+                            }
+                            connection.release();
+                        });
+                    });
+                }
+                connectionT.release();
+                return callback(null);
+            });
+        });
+    });
 }
 
 function findPrice(rows, name) {
