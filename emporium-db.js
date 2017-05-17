@@ -298,7 +298,7 @@ function GetTransportQueues(data, callback) {
         connectionpool_tiles.getConnection(function (err, connection) {
             async.waterfall([
                 function (done) {
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(100) NOT NULL , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function (err, rows, fields) {
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(1000) NOT NULL, `IndexInJobList` INT(5) NOT NULL  , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function (err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -650,7 +650,7 @@ function HandleProduceSale(data, callback) {
         //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
         //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB
 
-        var salesNum = data.salesNum;
+        var SaleID = data.ID;
         var DBdollars;
         var rowsPricings;
         var post = {};
@@ -664,13 +664,16 @@ function HandleProduceSale(data, callback) {
                     connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function (err, rowse, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
+                        } if (!rowse) {
+                            resolve({ call: "DISCREPANCY", content: { reasonString: "Job discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         }
                         job = rowse[0];
-                        saleDeser = JSON.parse(rowse[0].SALE); //LEFTOFF kazkur cia
+                        var tempSaleString = job.SALE;
+                        saleDeser = JSON.parse(tempSaleString);
 
-                        if (job.LENGTH_OF_TRANSPORTATION + job.START_OF_TRANSPORTATION < UnixTime()) { //patikrinimas, ar ne per anskti atsiunte JOB finisheri
+                        if (job.LENGTH_OF_TRANSPORTATION + job.START_OF_TRANSPORTATION > UnixTime()) { //patikrinimas, ar ne per anskti atsiunte JOB finisheri
                             resolve({ call: "DISCREPANCY", content: { reasonString: "Job discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         }
                         done(null);
@@ -705,13 +708,14 @@ function HandleProduceSale(data, callback) {
                             return callback(err);
                         }
 
-                        for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
-                            if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
+                        for (var i = 0; i < saleDeser.salesNum; i++) { //prasideda nuo 0
+                            if (Number(rows[0][saleDeser[i + "name"]]) < Number(saleDeser[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                                console.log("ok1");
                             } else {// viskas probs OK, sale allowed.
-                                post[data[i.toString() + "name"].toString()] = Number(rows[0][data[i + "name"]]) - Number(data[i + "amount"]); // naujas amountas paruosiamas postui i database.
+                                post[saleDeser[i.toString() + "name"].toString()] = Number(rows[0][saleDeser[i + "name"]]) - Number(saleDeser[i + "amount"]); // naujas amountas paruosiamas postui i database.
 
-                                postMoney["dollars"] += data[i + "amount"] * findPrice(rowsPricings, data[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
+                                postMoney["dollars"] += saleDeser[i + "amount"] * findPrice(rowsPricings, saleDeser[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
                                 //paciam sale screen.( $/per kilograma)
                             }
                         }
@@ -738,7 +742,16 @@ function HandleProduceSale(data, callback) {
 
                         resolve({ call: "SALE_VERIFICATION", content: postMoney });
 
+                        connectionT.query('DELETE FROM ?? WHERE ID = ?', [username + "_transport", SaleID], function (err, rowse, fields) {
+                            if (err) {
+                                reject(err);
+                                connectionT.release();
+                                return callback(err);
+                            }
+                        });
+
                         connection.release();
+                        connectionT.release();
                         return callback(null);
                         done(null);
                     });
@@ -757,10 +770,14 @@ function HandleProduceSaleJobAssignment(data, callback) {
         var username = data.Uname;
         var destination = data.Dest;
         var salesNum = data.salesNum;
-        var speed = data.TransportSpeed;
         var post = {};
         var transport;
         var totalWeight = 0;
+        var sale = "";
+        var dataPre = data;
+
+        sale = JSON.stringify(dataPre);
+        console.log(sale);
 
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
@@ -779,10 +796,8 @@ function HandleProduceSaleJobAssignment(data, callback) {
                                 totalWeight += Number(data[i + "amount"]);
                             }
                         }
-                        console.log("is viso vezama " + totalWeight);
 
-                        // todo patvirtint tranportacijos buda + paiimt jo speed;
-                        // transportSpeed = getTransportSpeed(data.Transport);
+                        // patvirtinamas tranportacijos budas + paiimamas speed;
 
                         getInfoAndVerifyTile(data.TransportID, data.Transport, username).then(function (rezz) {
                             transport = rezz;
@@ -791,8 +806,6 @@ function HandleProduceSaleJobAssignment(data, callback) {
                                 console.log("lauziu1");
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                             }
-
-                            var sale = JSON.stringify(data);
 
                             post = { DEST: destination, START_OF_TRANSPORTATION: UnixTime(), LENGTH_OF_TRANSPORTATION: transport[0].PROG_AMOUNT, SALE: sale, IndexInJobList: data.IndexInJobList };
 
@@ -806,7 +819,7 @@ function HandleProduceSaleJobAssignment(data, callback) {
                     connectionT.query('INSERT INTO ?? SET ?', [username + "_transport", post], function (err, rows, fields) {
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
                         }
 
