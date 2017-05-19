@@ -97,11 +97,9 @@ function ParsePasswordResetRequest(data, callback) {
 
         var passStatus;
 
-        var sqlq = 'SELECT password FROM users WHERE username = ?';
-
         connectionpool.getConnection(function (err, connection) {
             // Use the connection
-            connection.query(sqlq, username, function (err, rows, fields) {
+            connection.query('SELECT password FROM users WHERE username = ?', username, function (err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -669,6 +667,7 @@ function HandleProduceSale(data, callback) {
                         } if (!rowse) {
                             resolve({ call: "DISCREPANCY", content: { reasonString: "Job discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         }
+                        console.log(rowse[0]);
                         job = rowse[0];
                         var tempSaleString = job.SALE;
                         saleDeser = JSON.parse(tempSaleString);
@@ -800,7 +799,12 @@ function HandleProduceSaleJobAssignment(data, callback) {
                         // patvirtinamas tranportacijos budas + paiimamas speed;
 
                         getInfoAndVerifyTile(data.TransportID, data.Transport, username).then(function (rezz) {
-                            transport = rezz;
+                            if (!rezz.tile) { //nera transporto tile
+                                transport[0].PROG_AMOUNT = 600;
+                                transport.TILEPRODUCENAME = 30;
+                            } else {
+                                transport = rezz.tileInfo;
+                            }
 
                             if (totalWeight > transport.TILEPRODUCENAME * data.count) { //per daugg prikrauta is client
                                 console.log("lauziu1");
@@ -811,7 +815,6 @@ function HandleProduceSaleJobAssignment(data, callback) {
 
                             done(null);
                         }).catch(function (err) {
-                            console.log("lauziu2");
                             resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         });
                     });
@@ -1211,12 +1214,11 @@ function getInfoAndVerifyTile(ID, transport, username, callback) {
         var speed;
         var count;
         connectionpool_tiles.getConnection(function (err, connectionT) {
-            connectionT.query('SELECT * FROM ?? WHERE NAME = ? AND ID = ?', [username, transport, ID], function (err, rows, fields) {
+            connectionT.query('SELECT * FROM ?? WHERE NAME = ? AND ID = ?', [username, transport, ID], function (err, rowse, fields) {
                 if (err) throw err;
-                if (!rows) {
-                    reject(false);
+                if (!rowse) {
+                    resolve({ tile: rowse }); //grazinam, net jei ir tuscia
                 } else {
-                    count = rows.COUNT;
                     connectionpool.getConnection(function (err, connection) {
                         connection.query('SELECT * FROM buildings WHERE NAME = ?', [transport], function (err, rows, fields) {
                             if (err) throw err;
@@ -1224,8 +1226,8 @@ function getInfoAndVerifyTile(ID, transport, username, callback) {
                                 reject(false);
                             } else {
                                 console.log(rows);
-                                rows.count = count;
-                                resolve(rows);
+
+                                resolve({ tile: rowse, tileInfo: rows });
                             }
                             connection.release();
                         });
