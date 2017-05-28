@@ -46,7 +46,6 @@ function ParseLogin(data, callback) {
         var sqlq = 'SELECT password FROM users WHERE username = ?';
 
         connectionpool.getConnection(function (err, connection) {
-            // Use the connection
             connection.query(sqlq, username, function (err, rows, fields) {
                 if (err) {
                     reject(err);
@@ -98,7 +97,6 @@ function ParsePasswordResetRequest(data, callback) {
         var passStatus;
 
         connectionpool.getConnection(function (err, connection) {
-            // Use the connection
             connection.query('SELECT password FROM users WHERE username = ?', username, function (err, rows, fields) {
                 if (err) {
                     reject(err);
@@ -144,7 +142,6 @@ function ForgotPass(data, callback) {
         var email = data.Email;
 
         connectionpool.getConnection(function (err, connection) {
-            // Use the connection
             connection.query('SELECT * FROM users WHERE email = ?', email, function (err, rows, fields) {
                 if (err) {
                     reject(err);
@@ -223,7 +220,6 @@ function GetStats(data, callback) {
         var username = data.Uname;
 
         connectionpool.getConnection(function (err, connection) {
-            // Use the connection
             connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
                 if (err) {
                     reject(err);
@@ -642,11 +638,6 @@ function HandleProduceSale(data, callback) {
     callback = callback || function () { }
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
-
-        //ADAPT:  data.saleAmount - kiek produktu sugalvojo parduoti clientas (count). Kiek KIEKVIENO produkto parduota yra issaugota
-        // data["sale1"], data["sale2"]. Situs assigninam loope cliente. Cia prasukamvieno loopa pagal ta kieki, ir kiekviena kart atimam is esanciu
-        //database reiksmiu ir gautus rezultatus idedam i nauja object kuri pushinsiu idatabase kaip SET ?.
-        //var data={var1:1, var2:2}  yra tas pats kaip var data; data["var1"]=1, data["var2"] = 2. Tokiu assignment ir paruosiam post i DB
 
         var SaleID = data.ID;
         var DBdollars;
@@ -1134,7 +1125,6 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 
     console.log("inserting default stats into DB");
     connectionpool.getConnection(function (err, connection) { // starting a stats table entry for new client
-        // Use the connection
         connection.query('INSERT INTO stats SET ?', post, function (err, rows, fields) {
             if (err) throw err;
         });
