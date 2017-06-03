@@ -111,10 +111,7 @@ io.on("connection", function (socket) {
     //GAME STAT RETRIEVAL CALLS
 
     socket.on("GET_STATS", function (data) {
-        console.log("asking for stats");
         db.GetStats(data).then(function (data) {
-            console.log("asdasdasd");
-
             socket.emit("RETRIEVE_STATS", data);
         }).catch(function () {
             console.error("error caughte");
@@ -124,7 +121,6 @@ io.on("connection", function (socket) {
     //make function that manually pings for response, if response arrives, push lastloggedin to server \/
 
     socket.on("GET_TILE_DATA", function (data) {//tile information function
-        console.log("asking for tiles");
         db.GetTileData(data).then(function (data) {
             socket.emit("RECEIVE_TILES", data);
         }).catch(function () {
@@ -133,7 +129,6 @@ io.on("connection", function (socket) {
     });
 
     socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
-        console.log("asking for GET_TILE_INFORMATION");
         db.GetTiles(data).then(function (data) {
             socket.emit("RECEIVE_TILE_INFORMATION", data);
         }).catch(function () {
@@ -292,66 +287,6 @@ io.on("connection", function (socket) {
         }
     });
 });//iserts default stats into DB when user first starts the game,
-
-function TakeAwayMoney(money, lostmoney, username) {
-    connectionpool.getConnection(function (err, connection) {
-        var remaining = money - lostmoney;
-        var post = { dollars: remaining };
-
-        connection.query('UPDATE stats SET ? WHERE username = ? ', [post, username], function (err, rows, fields) {
-            if (err) throw err;
-        });
-        connection.release();
-    });
-}
-
-function AddMoney(addedmoney, username) {
-    connectionpool.getConnection(function (err, connection) {
-        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
-            if (err) throw err;
-
-            var DBdollars = rows[0].dollars;
-            var newmoney = DBdollars + addedmoney;
-            var post = { dollars: newmoney };
-
-            connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-                if (err) throw err;
-            });
-        });
-        connection.release();
-    });
-}
-
-function TakeAwayItem(item, amount, username) {
-    connectionpool.getConnection(function (err, connection) {
-        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
-            if (err) throw err;
-
-            var remaining = rows[0][item] - amount;
-            var post = {};
-            post[item] = remaining;//FIXME
-
-            console.log(post);
-
-            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-                if (err) throw err;
-            });
-        });
-
-        connection.release();
-    });
-}
-
-function UpdateLastloggedIn(username) {
-    connectionpool.getConnection(function (err, connection) {
-        var post = { lastonline: UnixTime() };
-        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
-            if (err) throw err;
-        });
-
-        connection.release();
-    });
-}
 
 // check if enough isnt working FINDAWAY (escapes from callback hell)
 
