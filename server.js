@@ -37,34 +37,6 @@ var connectionpool_tiles = mysql.createPool({
     database: 'emporium_users'
 });
 
-passport.use(new LocalStrategy(function (username, password, done) {
-    var data = { username: username, password: password, done: done };
-
-    db.ParseLogin(data).then(function (data) {
-        var status = data.status;
-        if (status == 2) { //nera userio
-            return done(null, false, { message: 'No user with that username.' });
-        } else if (status == 1) { //praleidziam
-            return done(null, user);
-        } else if (status == 0) { //blogas pass
-            return done(null, false, { message: 'Incorrect password.' });
-        }
-    }).catch(function () {
-        return done(err);
-        console.error("error caught");
-    });
-}));
-
-passport.serializeUser(function (user, done) {
-    done(null, user.id);
-});
-
-passport.deserializeUser(function (id, done) {
-    User.findById(id, function (err, user) {
-        done(err, user);
-    });
-});
-
 var clientCount = [];
 var currentConnections = {};
 
@@ -81,9 +53,6 @@ io.on("connection", function (socket) {
 
     if (findValue(currentConnections, socket.request.connection.remoteAddress)) { //TODO: WRITE A WORKING DUPLICATE CONNECTION CHECK
         console.log("user already logged in from different computer!");
-
-        socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
-        socket.disconnect();
     }
 
     currentConnections[socket.id] = { socket: socket, IP: socket.request.connection.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
@@ -95,10 +64,23 @@ io.on("connection", function (socket) {
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
     socket.on("CHECK_LOGIN", function (data) {
+        var username = data.Uname;
+
         db.ParseLogin(data).then(function (data) {
             var status = data.status;
 
             socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
+
+            if (status == 1) { //useris patvirtintas
+                if (findValue(currentConnections, username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
+                    socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+                    socket.disconnect();
+                } else {
+                    //username registruojamas velesniam naudojimui.
+                    console.log("hooking " + username + " to socket ID " + socket.id);
+                    currentConnections[socket.id].username = username;
+                }
+            }
         }).catch(function () {
             console.error("error caught");
         });
@@ -111,83 +93,119 @@ io.on("connection", function (socket) {
     //GAME STAT RETRIEVAL CALLS
 
     socket.on("GET_STATS", function (data) {
-        db.GetStats(data).then(function (data) {
-            socket.emit("RETRIEVE_STATS", data);
-        }).catch(function () {
-            console.error("error caughte");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetStats(data).then(function (data) {
+                socket.emit("RETRIEVE_STATS", data);
+            }).catch(function () {
+                console.error("error caughte");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     //make function that manually pings for response, if response arrives, push lastloggedin to server \/
 
     socket.on("GET_TILE_DATA", function (data) {//tile information function
-        db.GetTileData(data).then(function (data) {
-            socket.emit("RECEIVE_TILES", data);
-        }).catch(function () {
-            console.error("error caught @ tiledata");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetTileData(data).then(function (data) {
+                socket.emit("RECEIVE_TILES", data);
+            }).catch(function () {
+                console.error("error caught @ tiledata");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
-        db.GetTiles(data).then(function (data) {
-            socket.emit("RECEIVE_TILE_INFORMATION", data);
-        }).catch(function () {
-            console.error("error caught @ tile info");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetTiles(data).then(function (data) {
+                socket.emit("RECEIVE_TILE_INFORMATION", data);
+            }).catch(function () {
+                console.error("error caught @ tile info");
+            });
 
-        db.GetInventory(data).then(function (data) {
-            socket.emit("RECEIVE_INVENTORY", data);
-        }).catch(function () {
-            console.error("error caught @ inventory info");
-        });
+            db.GetInventory(data).then(function (data) {
+                socket.emit("RECEIVE_INVENTORY", data);
+            }).catch(function () {
+                console.error("error caught @ inventory info");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("FORGOT_PASS", function (data) {//tile purchase function
-        db.ForgotPass(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ password reset");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.ForgotPass(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ password reset");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("BUY_TILE", function (data) {//tile purchase function
-        db.HandleTilePurchase(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ tile buy");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleTilePurchase(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ tile buy");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("SELL_TILE", function (data) {//tile purchase function
-        db.HandleTileSale(data).then(function (data) {
-            socket.emit("ADD_FUNDS", data);
-        }).catch(function () {
-            console.error("error caught @ tile sale");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleTileSale(data).then(function (data) {
+                socket.emit("ADD_FUNDS", data);
+            }).catch(function () {
+                console.error("error caught @ tile sale");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
-        db.HandleTileAssignWork(data).then(function (data) {
-            socket.emit("ASSIGN_TILE_WORK", data);
-        }).catch(function () {
-            console.error("error caught @ tile work assignment");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleTileAssignWork(data).then(function (data) {
+                socket.emit("ASSIGN_TILE_WORK", data);
+            }).catch(function () {
+                console.error("error caught @ tile work assignment");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
-        db.HandleProduceSale(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function (err) {
-            console.error(err);
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleProduceSale(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function (err) {
+                console.error(err);
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("VERIFY_SOLD_PRODUCE_STORE", function (data) {//tile purchase function
-        db.HandleProduceSaleJobAssignment(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function (err) {
-            console.error(err);
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleProduceSaleJobAssignment(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function (err) {
+                console.error(err);
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     //FIXME: this shit here returns scientific number and not the real int.
@@ -200,60 +218,80 @@ io.on("connection", function (socket) {
         socket.emit("RECEIVE_UNIX", unixJson);
     });
 
-    socket.on("CLIENT_DATA", function (data) {
-        currentConnections[socket.id].name = data.Uname;
-    });
-
     socket.on("DISCONNECT", function (data) {
         socket.disconnect();
     });
 
     socket.on("VERIFY_COLLECT_TILE", function (data) {
-        db.HandleTileCollect(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ tile collection");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleTileCollect(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ tile collection");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("GET_TRANSPORT_QUEUES", function (data) {
-        db.GetTransportQueues(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ transport queues");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetTransportQueues(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ transport queues");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("GET_WORKERS", function (data) {
-        db.GetWorkers(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ worker getter");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetWorkers(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ worker getter");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
-        db.HandlePressWorkCollection(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ press work collection");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandlePressWorkCollection(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ press work collection");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("VERIFY_EXPAND_PLOTSIZE", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
-        db.HandlePlotsizeExpansion(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ plotsize expansion");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandlePlotsizeExpansion(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ plotsize expansion");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("GET_PRICES", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
-        db.HandlePriceRetrieval(data).then(function (data) {
-            socket.emit(data.call, data.content);
-        }).catch(function () {
-            console.error("error caught @ price retrieval");
-        });
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandlePriceRetrieval(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function () {
+                console.error("error caught @ price retrieval");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
     });
 
     socket.on("SUBMIT_BUGREPORT", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
@@ -286,7 +324,7 @@ io.on("connection", function (socket) {
     socket.on("disconnect", function (data) {
         //halp or fix later
         try {
-            console.log("user  " + currentConnections[socket.id].name + " dc'd");
+            console.log("user  " + currentConnections[socket.id].username + " dc'd");
             clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
             delete currentConnections[socket.id];
 
@@ -301,6 +339,14 @@ io.on("connection", function (socket) {
 function UnixTime() {
     var unix = Math.round(+new Date() / 1000);
     return unix;
+}
+
+function VerifyUser(username, socketID) {
+    if (currentConnections[socketID].username != username) { //client kreipiasi i serveri kitu username. DC + ban 5 min?
+        return false;
+    } else {
+        return true;
+    }
 }
 
 function CleanInput(a, mode) {
