@@ -1401,7 +1401,7 @@ function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
     return new Promise(function (resolve, reject) {
         connectionpool.getConnection(function (err, connection) {
             async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connection.query('SELECT * FROM ipBans WHERE IP = ?', ip, function (err, rows, fields) {
+                connection.query('SELECT * FROM ipbans WHERE IP = ?', ip, function (err, rows, fields) {
                     if (err) {
                         reject(err);
                         connection.release();
@@ -1414,7 +1414,7 @@ function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
                         if (rows[0].UNBAN_TIME <= UnixTime()) { //banas yra, bet galiojimas baigesi = praleidziam ir istrinam bana.
                             resolve({ banned: false });
 
-                            connection.query('DELETE FROM ipBans WHERE ID = ?', rows[0].ID, function (err, rows, fields) {
+                            connection.query('DELETE FROM ipbans WHERE ID = ?', rows[0].ID, function (err, rows, fields) {
                                 if (err) {
                                     return callback(err);
                                 }

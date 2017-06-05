@@ -60,22 +60,22 @@ io.on("connection", function (socket) {
     socket.on("CHECK_LOGIN", function (data) {
         var username = data.Uname;
 
-        db.CheckForIPBan(socket.request.connection.remoteAddress).then(function (data) {
-            if (data.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
+        db.CheckForIPBan(socket.request.connection.remoteAddress).then(function (banResult) {
+            if (banResult.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
             } else { //bano nera, viskas tvarkoj vaziuojam toliau
                 db.ParseLogin(data).then(function (data) {
                     var status = data.status;
 
-                    socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
-
                     if (status == 1) { //useris patvirtintas
-                        if (findValue(currentConnections, username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
+                        if (checkForDuplicateUser(username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
+                            console.log(username + " is already connected to node.");
                             socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
-                            socket.disconnect();
+                            //TODO: flash dupe alert
                         } else {
                             //username registruojamas velesniam naudojimui.
                             console.log("hooking " + username + " to socket ID " + socket.id);
                             currentConnections[socket.id].username = username;
+                            socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
                         }
                     }
                 }).catch(function () {
@@ -389,6 +389,18 @@ function findValue(o, value) {
         }
     }
     return null;
+}
+
+function checkForDuplicateUser(username) {
+    var status = false; //no dupe
+
+    Object.keys(currentConnections).forEach(function (key, index) {
+        if (currentConnections[key].username == username) {
+            status = true;
+        }
+    });
+
+    return status;
 }
 
 function findPrice(rows, name) {
