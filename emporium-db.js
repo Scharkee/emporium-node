@@ -870,6 +870,7 @@ function HandleProduceSaleJobAssignment(data, callback) {
             });
 
             connection.release();
+            return callback(null);
         });
     });
 }
@@ -902,6 +903,7 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
                 if (err) return next(err);
             });
             connectionT.release();
+            return callback(null);
         });
     });
 }
@@ -934,6 +936,7 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
                 if (err) return next(err);
             });
             connectionT.release();
+            return callback(null);
         });
     });
 }
@@ -966,6 +969,7 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
                 if (err) return next(err);
             });
             connectionT.release();
+            return callback(null);
         });
     });
 }
@@ -998,6 +1002,7 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
                 if (err) return next(err);
             });
             connectionT.release();
+            return callback(null);
         });
     });
 }
@@ -1360,6 +1365,76 @@ function TakeAwayItem(item, amount, username) {
     });
 }
 
+function BanIP(ip, timeInSeconds, callback) {
+    connectionpool.getConnection(function (err, connection) {
+        //patikrinimas, ar nera egzistuojancio ban tam paciam IP
+        connection.query('SELECT * FROM ipBans WHERE IP = ?', ip, function (err, rows, fields) {
+            if (err) {
+                reject(err);
+                connection.release();
+                return callback(err);
+            }
+            if (!rows.length) { //nera uzregistruoto bano, dedam bana.
+                connection.query('INSERT INTO ipBans SET ?', { IP: ip, UNBAN_TIME: UnixTime() + timeInSeconds }, function (err, rows, fields) {
+                    if (err) {
+                        connection.release();
+                        return callback(err);
+                    }
+                });
+            } else { //banas yra, todel tik updatinam laika.
+                connection.query('UPDATE ipBans SET ? WHERE ID = ?', [{ UNBAN_TIME: UnixTime() + timeInSeconds }, rows[0].ID], function (err, rows, fields) {
+                    if (err) {
+                        connection.release();
+                        return callback(err);
+                    }
+                });
+            }
+        });
+
+        connection.release();
+        return callback(null);
+    });
+}
+
+function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        connectionpool.getConnection(function (err, connection) {
+            async.waterfall([function (done) { //paziurim ar workeris laisvas
+                connection.query('SELECT * FROM ipBans WHERE IP = ?', ip, function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connection.release();
+                        return callback(err);
+                    }
+
+                    if (!rows.length) { //nera uzregistruoto bano, all clear.
+                        resolve({ banned: false });
+                    } else {
+                        if (rows[0].UNBAN_TIME <= UnixTime()) { //banas yra, bet galiojimas baigesi = praleidziam ir istrinam bana.
+                            resolve({ banned: false });
+
+                            connection.query('DELETE FROM ipBans WHERE ID = ?', rows[0].ID, function (err, rows, fields) {
+                                if (err) {
+                                    return callback(err);
+                                }
+                            });
+                        } else { //banas vis dar galioja.
+                            resolve({ banned: true });
+                        }
+                    }
+
+                    done(null);
+                });
+            }], function (err) {
+                if (err) return next(err);
+            });
+            connection.release();
+            return callback(null);
+        });
+    });
+}
+
 function findValue(o, value) {
     for (var prop in o) {
         if (o.hasOwnProperty(prop) && o[prop] === value) {
@@ -1445,5 +1520,7 @@ module.exports = {
     HandleWorkerUnAssignment: HandleWorkerUnAssignment,
     HandleWorkerHired: HandleWorkerHired,
     HandleWorkerFired: HandleWorkerFired,
-    GetWorkers: GetWorkers
+    CheckForIPBan: CheckForIPBan,
+    BanIP: BanIP,
+    GetWorkers: GetWorkers,
 };

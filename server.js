@@ -49,15 +49,9 @@ io.on("connection", function (socket) {
     var UserPlotSize;
     var UserLastOnline;
 
-    //preliminarus checkas del duplicate prisijungimu.
-
-    if (findValue(currentConnections, socket.request.connection.remoteAddress)) { //TODO: WRITE A WORKING DUPLICATE CONNECTION CHECK
-        console.log("user already logged in from different computer!");
-    }
-
+    //registruojamas socket + user IP
     currentConnections[socket.id] = { socket: socket, IP: socket.request.connection.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
     clientCount.push(socket);
-    //registruojamas socket + user IP
 
     console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.request.connection.remoteAddress);
 
@@ -66,23 +60,30 @@ io.on("connection", function (socket) {
     socket.on("CHECK_LOGIN", function (data) {
         var username = data.Uname;
 
-        db.ParseLogin(data).then(function (data) {
-            var status = data.status;
+        db.CheckForIPBan(socket.request.connection.remoteAddress).then(function (data) {
+            if (data.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
+            } else { //bano nera, viskas tvarkoj vaziuojam toliau
+                db.ParseLogin(data).then(function (data) {
+                    var status = data.status;
 
-            socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
+                    socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
 
-            if (status == 1) { //useris patvirtintas
-                if (findValue(currentConnections, username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
-                    socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
-                    socket.disconnect();
-                } else {
-                    //username registruojamas velesniam naudojimui.
-                    console.log("hooking " + username + " to socket ID " + socket.id);
-                    currentConnections[socket.id].username = username;
-                }
+                    if (status == 1) { //useris patvirtintas
+                        if (findValue(currentConnections, username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
+                            socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+                            socket.disconnect();
+                        } else {
+                            //username registruojamas velesniam naudojimui.
+                            console.log("hooking " + username + " to socket ID " + socket.id);
+                            currentConnections[socket.id].username = username;
+                        }
+                    }
+                }).catch(function () {
+                    console.error("error caught @ login check");
+                });
             }
         }).catch(function () {
-            console.error("error caught");
+            console.error("error caught @ ban check");
         });
     });
 
@@ -97,7 +98,7 @@ io.on("connection", function (socket) {
             db.GetStats(data).then(function (data) {
                 socket.emit("RETRIEVE_STATS", data);
             }).catch(function () {
-                console.error("error caughte");
+                console.error("error caught @ get stats");
             });
         } else {
             socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
@@ -341,12 +342,22 @@ function UnixTime() {
     return unix;
 }
 
-function VerifyUser(username, socketID) {
-    if (currentConnections[socketID].username != username) { //client kreipiasi i serveri kitu username. DC + ban 5 min?
+function VerifyUser(username, socketID) { //kvieciama per kiekviena client to server call
+    if (currentConnections[socketID].username == null) {//nera net assigninto username, probably cheating/injecting. Ban 5 min (socketas neatlikes login/auth)
+        return false;
+    }
+    if (currentConnections[socketID].username != username) { //client kreipiasi i serveri kitu username. (Definetely) injecting. Ban 15 min
         return false;
     } else {
         return true;
     }
+}
+
+function BanIP(ip, timeInSeconds) {
+    db.BanIP(ip, timeInSeconds).then(function (data) {
+    }).catch(function () {
+        console.error("error caught @ banning");
+    });
 }
 
 function CleanInput(a, mode) {
