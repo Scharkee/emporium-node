@@ -323,6 +323,46 @@ function GetTransportQueues(data, callback) {
     });
 }
 
+function GetWorkers(data, callback) {
+    callback = callback || function () { }
+
+    return new Promise(function (resolve, reject) {
+        var username = data.Uname;
+
+        connectionpool_tiles.getConnection(function (err, connection) {
+            async.waterfall([
+                function (done) {
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers", function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+                    });
+
+                    done(null);
+                }, function (done) {
+                    connection.query('SELECT * FROM ??', data.Uname + "_workers", function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        resolve({ call: "RECEIVE_WORKERS", content: { rows } });
+                    });
+
+                    done(null);
+                }], function (err) {
+                    if (err) return next(err);
+                });
+
+            connection.release();
+            return callback(null);
+        });
+    });
+}
+
 function GetTiles(data, callback) {
     callback = callback || function () { }
 
@@ -650,7 +690,7 @@ function HandleProduceSale(data, callback) {
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
                 async.waterfall([function (done) {
-                    connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function (err, rowse, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
+                    connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function (err, rowse, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -767,7 +807,6 @@ function HandleProduceSaleJobAssignment(data, callback) {
         var dataPre = data;
 
         sale = JSON.stringify(dataPre);
-        console.log(sale);
 
         connectionpool.getConnection(function (err, connection) {
             connectionpool_tiles.getConnection(function (err, connectionT) {
@@ -801,7 +840,7 @@ function HandleProduceSaleJobAssignment(data, callback) {
                                 console.log("lauziu1");
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                             }
-
+                            console.log("still alive");
                             post = { DEST: destination, START_OF_TRANSPORTATION: UnixTime(), LENGTH_OF_TRANSPORTATION: transport[0].PROG_AMOUNT, SALE: sale, IndexInJobList: data.IndexInJobList };
 
                             done(null);
@@ -816,17 +855,149 @@ function HandleProduceSaleJobAssignment(data, callback) {
                             connectionT.release();
                             return callback(err);
                         }
-
+                        console.log("still alive");
                         post.ID = rows.insertId;
 
-                        resolve({ call: "SALE_JOB_VERIFICATION", content: { post } });
+                        resolve({ call: "SALE_JOB_VERIFICATION", content: post });
                         done(null);
                     });
                 }], function (err) {
+                    //LEFTOFF: sitas VISADA trigerinasi, so idea why.
                     console.log(err);
                     if (err) return next(err);
                 });
+                connectionT.release();
             });
+
+            connection.release();
+        });
+    });
+}
+
+function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas ant specifiskos tile pagal ID
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        var post = {};
+        var username = data.Uname;
+        var assignedTileID = data.AssignedTileID;
+        var workerID = data.WorkerID;
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+            async.waterfall([function (done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    post.WorkerID = rows.insertId;
+                    post.TileID = assignedTileID;
+
+                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    done(null);
+                });
+            }], function (err) {
+                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
+                console.log(err);
+                if (err) return next(err);
+            });
+            connectionT.release();
+        });
+    });
+}
+
+function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziamas (nebedirba ant tile) pagal ID
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        var post = {};
+        var username = data.Uname;
+        var assignedTileID = data.AssignedTileID;
+        var workerID = data.WorkerID;
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+            async.waterfall([function (done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    post.WorkerID = rows.insertId;
+                    post.TileID = assignedTileID;
+
+                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    done(null);
+                });
+            }], function (err) {
+                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
+                console.log(err);
+                if (err) return next(err);
+            });
+            connectionT.release();
+        });
+    });
+}
+
+function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT)
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        var post = {};
+        var username = data.Uname;
+        var assignedTileID = data.AssignedTileID;
+        var workerID = data.WorkerID;
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+            async.waterfall([function (done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    post.WorkerID = rows.insertId;
+                    post.TileID = assignedTileID;
+
+                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    done(null);
+                });
+            }], function (err) {
+                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
+                console.log(err);
+                if (err) return next(err);
+            });
+            connectionT.release();
+        });
+    });
+}
+
+function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP)
+    callback = callback || function () { }
+    return new Promise(function (resolve, reject) {
+        var post = {};
+        var username = data.Uname;
+        var assignedTileID = data.AssignedTileID;
+        var workerID = data.WorkerID;
+
+        connectionpool_tiles.getConnection(function (err, connectionT) {
+            async.waterfall([function (done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    post.WorkerID = rows.insertId;
+                    post.TileID = assignedTileID;
+
+                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    done(null);
+                });
+            }], function (err) {
+                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
+                console.log(err);
+                if (err) return next(err);
+            });
+            connectionT.release();
         });
     });
 }
@@ -1269,5 +1440,10 @@ module.exports = {
     ForgotPass: ForgotPass,
     ParsePasswordResetRequest: ParsePasswordResetRequest,
     GetTransportQueues: GetTransportQueues,
-    HandleProduceSaleJobAssignment: HandleProduceSaleJobAssignment
+    HandleProduceSaleJobAssignment: HandleProduceSaleJobAssignment,
+    HandleWorkerAssignment: HandleWorkerAssignment,
+    HandleWorkerUnAssignment: HandleWorkerUnAssignment,
+    HandleWorkerHired: HandleWorkerHired,
+    HandleWorkerFired: HandleWorkerFired,
+    GetWorkers: GetWorkers
 };

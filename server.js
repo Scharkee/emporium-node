@@ -224,6 +224,14 @@ io.on("connection", function (socket) {
         });
     });
 
+    socket.on("GET_WORKERS", function (data) {
+        db.GetWorkers(data).then(function (data) {
+            socket.emit(data.call, data.content);
+        }).catch(function () {
+            console.error("error caught @ worker getter");
+        });
+    });
+
     socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
         db.HandlePressWorkCollection(data).then(function (data) {
             socket.emit(data.call, data.content);
