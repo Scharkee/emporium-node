@@ -1,18 +1,63 @@
 var express = require('express');
 var app = express();
 var shortId = require('shortid');
-var server = require('http').createServer(app);
-var io = require('socket.io').listen(server);
+
 var Chance = require('chance');
 var db = require('./emporium-db.js');
 var web = require('./webhandler.js');
-var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
 var async = require('async');
 
-app.set('port', 2333);
+// returns an instance of node-greenlock with additional helper methods
+var lex = require('greenlock-express').create({
+    // set to https://acme-v01.api.letsencrypt.org/directory in production
+    server: 'https://acme-staging.api.letsencrypt.org/directory'
+
+    // If you wish to replace the default plugins, you may do so here
+    //
+, challenges: { 'http-01': require('le-challenge-fs').create({ webrootPath: '/tmp/acme-challenges' }) }
+, store: require('le-store-certbot').create({ webrootPath: '/tmp/acme-challenges' })
+
+    // You probably wouldn't need to replace the default sni handler
+    // See https://git.daplie.com/Daplie/le-sni-auto if you think you do
+    //, sni: require('le-sni-auto').create({})
+
+, approveDomains: approveDomains
+});
+
+function approveDomains(opts, certs, cb) {
+    // This is where you check your database and associated
+    // email addresses with domains and agreements and such
+
+    // The domains being approved for the first time are listed in opts.domains
+    // Certs being renewed are listed in certs.altnames
+    if (certs) {
+        opts.domains = ['www.scharkee.gq', 'scharkee.gq'];
+    }
+    else {
+        opts.email = 'matas2k@gmail.com';
+        opts.agreeTos = true;
+    }
+
+    // NOTE: you can also change other options such as `challengeType` and `challenge`
+    // opts.challengeType = 'http-01';
+    // opts.challenge = require('le-challenge-fs').create({});
+
+    cb(null, { options: opts, certs: certs });
+}
 
 app.use(web);
+
+// handles acme-challenge and redirects to https
+require('http').createServer(lex.middleware(require('redirect-https')())).listen(80, function () {
+    console.log("Listening for ACME http-01 challenges on", this.address());
+});
+
+// handles your app
+var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(2333, function () {
+    console.log("Listening for ACME tls-sni-01 challenges and serve app on", this.address());
+});
+
+var io = require('socket.io').listen(server);
 
 var clients = [];
 
@@ -69,7 +114,7 @@ io.on("connection", function (socket) {
                     if (status == 1) { //useris patvirtintas
                         if (checkForDuplicateUser(username)) { //patikra, ar nera jau uzregistruoto connectiono su tuo paciu username
                             console.log(username + " is already connected to node.");
-                            socket.emit("DISCREPANCY", { reason: 1, reasonString: "User already logged in from another device!" }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+                            socket.emit("PASS_CHECK_CALLBACK", { passStatus: 3 });
                             //TODO: flash dupe alert
                         } else {
                             //username registruojamas velesniam naudojimui.
@@ -415,10 +460,6 @@ function findPrice(rows, name) {
 
     return price;
 }
-
-server.listen(2333, function () {
-    console.log("-----------SERVER STARTED------------");
-});
 
 Array.prototype.contains = function (element) {
     return this.indexOf(element) > -1;
