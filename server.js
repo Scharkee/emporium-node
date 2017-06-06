@@ -92,19 +92,18 @@ io.on("connection", function (socket) {
     var tempIP = 12;
 
     //registruojamas socket + user IP
-    currentConnections[socket.id] = { socket: socket, IP: tempIP };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
+    currentConnections[socket.id] = { socket: socket, IP: socket.conn.transport.socket._socket.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
     clientCount.push(socket);
 
-    console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + tempIP);
-
-    console.log("IP is " + socket.request.connection.remoteAddress);
+    console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.conn.transport.socket._socket.remoteAddress);
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
     socket.on("CHECK_LOGIN", function (data) {
         var username = data.Uname;
 
-        db.CheckForIPBan(tempIP).then(function (banResult) {
+        db.CheckForIPBan(socket.conn.transport.socket._socket.remoteAddress).then(function (banResult) {
             if (banResult.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
+                socket.emit("PASS_CHECK_CALLBACK", { passStatus: 4 });
             } else { //bano nera, viskas tvarkoj vaziuojam toliau
                 db.ParseLogin(data).then(function (data) {
                     var status = data.status;
