@@ -4,7 +4,7 @@ var db = require('./emporium-db.js');
 var formidable = require("formidable");
 
 router.get('/pass_reset', function (req, res) {
-    res.send('WIP password reset LUL.');
+    res.send('WIP password reset.');
 });
 
 router.get('/rst/:token', function (req, res) {

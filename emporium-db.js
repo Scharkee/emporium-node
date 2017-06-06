@@ -1232,6 +1232,17 @@ function HandlePlotsizeExpansion(data, callback) {
     });
 }
 
+function UpdateLastloggedIn(username) {
+    connectionpool.getConnection(function (err, connection) {
+        var post = { lastonline: UnixTime() };
+        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+            if (err) throw err;
+        });
+
+        connection.release();
+    });
+}
+
 function HandlePriceRetrieval(data, callback) {
     callback = callback || function () { }
     return new Promise(function (resolve, reject) {
@@ -1523,4 +1534,5 @@ module.exports = {
     CheckForIPBan: CheckForIPBan,
     BanIP: BanIP,
     GetWorkers: GetWorkers,
+    UpdateLastloggedIn: UpdateLastloggedIn,
 };

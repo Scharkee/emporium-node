@@ -7,6 +7,8 @@ var db = require('./emporium-db.js');
 var web = require('./webhandler.js');
 var async = require('async');
 
+var io = require('socket.io');
+
 // returns an instance of node-greenlock with additional helper methods
 var lex = require('greenlock-express').create({
     // set to https://acme-v01.api.letsencrypt.org/directory in production
@@ -14,7 +16,7 @@ var lex = require('greenlock-express').create({
 
     // If you wish to replace the default plugins, you may do so here
     //
-, challenges: { 'http-01': require('le-challenge-fs').create({ webrootPath: '/tmp/acme-challenges' }) }
+, challenges: { 'tls-sni-01': require('le-challenge-sni').create({}) }
 , store: require('le-store-certbot').create({ webrootPath: '/tmp/acme-challenges' })
 
     // You probably wouldn't need to replace the default sni handler
@@ -31,7 +33,7 @@ function approveDomains(opts, certs, cb) {
     // The domains being approved for the first time are listed in opts.domains
     // Certs being renewed are listed in certs.altnames
     if (certs) {
-        opts.domains = ['www.scharkee.gq', 'scharkee.gq'];
+        opts.domains = ['*.scharkee.gq'];
     }
     else {
         opts.email = 'matas2k@gmail.com';
@@ -86,26 +88,22 @@ var clientCount = [];
 var currentConnections = {};
 
 io.on("connection", function (socket) {
-    //fix this shit, istrint shitty variables
-    var currentUser;
-
-    var UserUsername;
-    var UserDollars;
-    var UserPlotSize;
-    var UserLastOnline;
+    //TODO: broken, nes nebeiseina gaut IP.
+    var tempIP = 12;
 
     //registruojamas socket + user IP
-    currentConnections[socket.id] = { socket: socket, IP: socket.request.connection.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
+    currentConnections[socket.id] = { socket: socket, IP: tempIP };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
     clientCount.push(socket);
 
-    console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.request.connection.remoteAddress);
+    console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + tempIP);
 
+    console.log("IP is " + socket.request.connection.remoteAddress);
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
     socket.on("CHECK_LOGIN", function (data) {
         var username = data.Uname;
 
-        db.CheckForIPBan(socket.request.connection.remoteAddress).then(function (banResult) {
+        db.CheckForIPBan(tempIP).then(function (banResult) {
             if (banResult.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
             } else { //bano nera, viskas tvarkoj vaziuojam toliau
                 db.ParseLogin(data).then(function (data) {
@@ -368,14 +366,14 @@ io.on("connection", function (socket) {
 
     //on client disconnected
     socket.on("disconnect", function (data) {
-        //halp or fix later
-        try {
+        if (currentConnections[socket.id].username == null) {
+            clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
+        } else {
             console.log("user  " + currentConnections[socket.id].username + " dc'd");
             clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
-            delete currentConnections[socket.id];
+            db.UpdateLastloggedIn(currentConnections[socket.id].username);
 
-            UpdateLastloggedIn(currentConnections[socket.id].name);
-        } catch (err) {
+            delete currentConnections[socket.id];
         }
     });
 });//iserts default stats into DB when user first starts the game,
