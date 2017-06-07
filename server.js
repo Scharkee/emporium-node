@@ -6,6 +6,7 @@ var Chance = require('chance');
 var db = require('./emporium-db.js');
 var web = require('./webhandler.js');
 var async = require('async');
+var expressVue = require('express-vue');
 
 var io = require('socket.io');
 
@@ -47,17 +48,32 @@ function approveDomains(opts, certs, cb) {
     cb(null, { options: opts, certs: certs });
 }
 
-app.use('/', express.static(__dirname + '/web'));
+//pagrindinis app config
+
+app.use(express.static(__dirname + '/web/main'));
 app.use(web);
+
+app.set('views', __dirname + '/vue/views');
+//Optional if you want to specify the components directory separate to your views, and/or specify a custom layout.
+app.set('vue', {
+    //ComponentsDir is optional if you are storing your components in a different directory than your views
+    componentsDir: __dirname + '/vue/views/components',
+    //Default layout is optional it's a file and relative to the views path, it does not require a .vue extension.
+    //If you want a custom layout set this to the location of your layout.vue file.
+    defaultLayout: 'layout'
+});
+app.engine('vue', expressVue);
+app.set('view engine', 'vue');
 
 // handles acme-challenge and redirects to https
 require('http').createServer(lex.middleware(require('redirect-https')())).listen(80, function () {
-    console.log("Listening for ACME http-01 challenges on", this.address());
+    console.log("============ Up and running =============");
+    console.log("HTTP redirector: ", this.address());
 });
 
 // handles your app
 var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(443, function () {
-    console.log("Listening for ACME tls-sni-01 challenges and serve app on", this.address());
+    console.log("HTTPS: ", this.address());
 });
 
 var io = require('socket.io').listen(server);

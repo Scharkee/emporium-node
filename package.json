@@ -13,6 +13,7 @@
     "bcrypt": "^1.0.2",
     "chance": "^1.0.9",
     "express": "^4.15.3",
+    "express-vue": "^3.12.1",
     "formidable": "^1.1.1",
     "greenlock-express": "^2.0.11",
     "mysql": "^2.13.0",
