@@ -12,12 +12,12 @@ var io = require('socket.io');
 // returns an instance of node-greenlock with additional helper methods
 var lex = require('greenlock-express').create({
     // set to https://acme-v01.api.letsencrypt.org/directory in production
-    server: 'https://acme-staging.api.letsencrypt.org/directory'
+    server: 'https://acme-v01.api.letsencrypt.org/directory'
 
     // If you wish to replace the default plugins, you may do so here
     //
-, challenges: { 'tls-sni-01': require('le-challenge-sni').create({}) }
-, store: require('le-store-certbot').create({ webrootPath: '/tmp/acme-challenges' })
+, challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) }
+, store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' })
 
     // You probably wouldn't need to replace the default sni handler
     // See https://git.daplie.com/Daplie/le-sni-auto if you think you do
@@ -33,7 +33,7 @@ function approveDomains(opts, certs, cb) {
     // The domains being approved for the first time are listed in opts.domains
     // Certs being renewed are listed in certs.altnames
     if (certs) {
-        opts.domains = ['*.scharkee.gq'];
+        opts.domains = ['www.scharkee.gq', 'scharkee.gq'];
     }
     else {
         opts.email = 'matas2k@gmail.com';
@@ -55,7 +55,7 @@ require('http').createServer(lex.middleware(require('redirect-https')())).listen
 });
 
 // handles your app
-var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(2333, function () {
+var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(443, function () {
     console.log("Listening for ACME tls-sni-01 challenges and serve app on", this.address());
 });
 
@@ -65,24 +65,6 @@ var clients = [];
 
 var mysql = require('mysql');
 var bcrypt = require('bcrypt');
-
-var connectionpool = mysql.createPool({
-    connectionlimit: 10,
-    host: 'localhost',
-    user: 'emporium-node',
-    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium'
-});
-
-//TODO: DONT CHANGE LOCALHOSTS INTO MY IP, change unity SOCKET node server IP.
-
-var connectionpool_tiles = mysql.createPool({
-    connectionlimit: 10,
-    host: 'localhost',
-    user: 'emporium-node',
-    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium_users'
-});
 
 var clientCount = [];
 var currentConnections = {};

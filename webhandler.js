@@ -7,6 +7,10 @@ router.get('/pass_reset', function (req, res) {
     res.send('WIP password reset.');
 });
 
+router.get('/p', function (req, res) {
+    res.send('THE BIG P');
+});
+
 router.get('/rst/:token', function (req, res) {
     db.ParsePasswordResetRequest(req).then(function (data) {
         var status = data.status;
