@@ -2,13 +2,19 @@ var express = require('express');
 var router = express.Router();
 var db = require('./emporium-db.js');
 var formidable = require("formidable");
+var path = require('path');
 
 router.get('/pass_reset', function (req, res) {
     res.send('WIP password reset.');
 });
 
-router.get('/p', function (req, res) {
-    res.send('THE BIG P');
+router.get('/s', function (req, res) {
+    console.log("someone asked for S");
+    res.sendFile(path.join(__dirname + '/web/s/1.html'));
+});
+
+router.get('/owl', function (req, res) {
+    res.sendFile(path.join(__dirname + '/web/img/owl.jpg'));
 });
 
 router.get('/rst/:token', function (req, res) {

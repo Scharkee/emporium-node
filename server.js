@@ -1,7 +1,7 @@
 var express = require('express');
 var app = express();
 var shortId = require('shortid');
-
+var path = require('path');
 var Chance = require('chance');
 var db = require('./emporium-db.js');
 var web = require('./webhandler.js');
@@ -33,7 +33,7 @@ function approveDomains(opts, certs, cb) {
     // The domains being approved for the first time are listed in opts.domains
     // Certs being renewed are listed in certs.altnames
     if (certs) {
-        opts.domains = ['www.scharkee.gq', 'scharkee.gq'];
+        opts.domains = ['www.scharkee.gq', 'scharkee.gq', 'padan.ga', 'www.padan.ga', 'www.gamtosau.ga', 'gamtosau.ga'];
     }
     else {
         opts.email = 'matas2k@gmail.com';
@@ -47,6 +47,7 @@ function approveDomains(opts, certs, cb) {
     cb(null, { options: opts, certs: certs });
 }
 
+app.use('/', express.static(__dirname + '/web'));
 app.use(web);
 
 // handles acme-challenge and redirects to https
