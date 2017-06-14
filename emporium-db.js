@@ -332,7 +332,7 @@ function GetWorkers(data, callback) {
         connectionpool_tiles.getConnection(function (err, connection) {
             async.waterfall([
                 function (done) {
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers", function (err, rows, fields) {
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_hired", function (err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -342,7 +342,7 @@ function GetWorkers(data, callback) {
 
                     done(null);
                 }, function (done) {
-                    connection.query('SELECT * FROM ??', data.Uname + "_workers", function (err, rows, fields) {
+                    connection.query('SELECT * FROM ??', data.Uname + "_workers_hired", function (err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -862,9 +862,10 @@ function HandleProduceSaleJobAssignment(data, callback) {
                         done(null);
                     });
                 }], function (err) {
-                    //LEFTOFF: sitas VISADA trigerinasi, so idea why.
-                    console.log(err);
-                    if (err) return next(err);
+                    if (err) {
+                        console.log(err);
+                        return next(err);
+                    }
                 });
                 connectionT.release();
             });
@@ -898,9 +899,10 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
                     done(null);
                 });
             }], function (err) {
-                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
-                console.log(err);
-                if (err) return next(err);
+                if (err) {
+                    console.log(err);
+                    return next(err);
+                }
             });
             connectionT.release();
             return callback(null);
@@ -931,9 +933,10 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
                     done(null);
                 });
             }], function (err) {
-                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
-                console.log(err);
-                if (err) return next(err);
+                if (err) {
+                    console.log(err);
+                    return next(err);
+                }
             });
             connectionT.release();
             return callback(null);
@@ -941,35 +944,69 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
     });
 }
 
-function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT)
+function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT)   ==Pretty much done this func
     callback = callback || function () { }
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
         var assignedTileID = data.AssignedTileID;
         var workerID = data.WorkerID;
+        var DBdollars;
+        var worker = {}; //cia sudedam nusamdyto workerio duomenis
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+        //TODO: waterfall etapas, kai pasirenkamas workeris (is to userio possible workeriu saraso) pagal userio atsiusta ID. No checks needed nes tik ID perduotas, cant hack that shit vistiek viskas in DB.
+        //TODO: kartu su GET_STATS ir GET_TRANSPORT_QUEUES padaryt ir GET_WORKER_LIST + sugeneruot kasdien? nauja(upgradeable?), jei get'ina ir jau pasenes.
+        //TODO: panel for worker stuff (hires, fires, management)
+        //TODO: baigus workers perziuret VISA projekta del connection.release'u.
+
+        connectionpool.getConnection(function (err, connection) {
+            connectionpool_tiles.getConnection(function (err, connectionT) {
+                async.waterfall([function (done) { //idedam nauja worker i DB
+                    connection.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_available", workerID], function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        worker = rows[0];
+                        done(null);
+                    });
+                }, function (done) { //idedam nauja worker i DB
+                    connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        DBdollars = rows[0].dollars;
+                        done(null);
+                    });
+                }, function (done) { //idedam nauja worker i DB jei pakanka dollars
+                    if (DBdollars >= worker.hireCost)
+                        connectionT.query('INSERT ? INTO ??', [worker, username + "_workers_hired"], function (err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connectionT.release();
+                                return callback(err);
+                            }
+                            post.WorkerID = rows.insertId;
+                            post.Worker = worker;
+
+                            resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                            done(null);
+                        });
+                }], function (err) {
                     if (err) {
-                        reject(err);
-                        connectionT.release();
-                        return callback(err);
+                        console.log(err);
+                        return next(err);
                     }
-                    post.WorkerID = rows.insertId;
-                    post.TileID = assignedTileID;
-
-                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
-                    done(null);
                 });
-            }], function (err) {
-                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
-                console.log(err);
-                if (err) return next(err);
+                connectionT.release();
+                connection.release();
+                return callback(null);
             });
-            connectionT.release();
-            return callback(null);
         });
     });
 }
@@ -997,9 +1034,10 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
                     done(null);
                 });
             }], function (err) {
-                //LEFTOFF: sitas VISADA trigerinasi, so idea why.
-                console.log(err);
-                if (err) return next(err);
+                if (err) {
+                    console.log(err);
+                    return next(err);
+                }
             });
             connectionT.release();
             return callback(null);

@@ -12,27 +12,14 @@ var io = require('socket.io');
 
 // returns an instance of node-greenlock with additional helper methods
 var lex = require('greenlock-express').create({
-    // set to https://acme-v01.api.letsencrypt.org/directory in production
     server: 'https://acme-v01.api.letsencrypt.org/directory'
-
-    // If you wish to replace the default plugins, you may do so here
-    //
 , challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) }
 , store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' })
-
-    // You probably wouldn't need to replace the default sni handler
-    // See https://git.daplie.com/Daplie/le-sni-auto if you think you do
-    //, sni: require('le-sni-auto').create({})
 
 , approveDomains: approveDomains
 });
 
 function approveDomains(opts, certs, cb) {
-    // This is where you check your database and associated
-    // email addresses with domains and agreements and such
-
-    // The domains being approved for the first time are listed in opts.domains
-    // Certs being renewed are listed in certs.altnames
     if (certs) {
         opts.domains = ['www.scharkee.gq', 'scharkee.gq', 'padan.ga', 'www.padan.ga', 'www.gamtosau.ga', 'gamtosau.ga'];
     }
@@ -40,10 +27,6 @@ function approveDomains(opts, certs, cb) {
         opts.email = 'matas2k@gmail.com';
         opts.agreeTos = true;
     }
-
-    // NOTE: you can also change other options such as `challengeType` and `challenge`
-    // opts.challengeType = 'http-01';
-    // opts.challenge = require('le-challenge-fs').create({});
 
     cb(null, { options: opts, certs: certs });
 }
@@ -54,12 +37,8 @@ app.use(express.static(__dirname + '/web/main'));
 app.use(web);
 
 app.set('views', __dirname + '/vue/views');
-//Optional if you want to specify the components directory separate to your views, and/or specify a custom layout.
 app.set('vue', {
-    //ComponentsDir is optional if you are storing your components in a different directory than your views
     componentsDir: __dirname + '/vue/views/components',
-    //Default layout is optional it's a file and relative to the views path, it does not require a .vue extension.
-    //If you want a custom layout set this to the location of your layout.vue file.
     defaultLayout: 'layout'
 });
 app.engine('vue', expressVue);
