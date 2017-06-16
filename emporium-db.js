@@ -5,6 +5,7 @@ var mysql = require('mysql');
 var bcrypt = require('bcrypt');
 var crypto = require('crypto');
 var async = require('async');
+var NameGenerator = require('nodejs-randomnames');
 
 //MYSQL reikalingi loginai
 
@@ -331,8 +332,8 @@ function GetWorkers(data, callback) {
 
         connectionpool_tiles.getConnection(function (err, connection) {
             async.waterfall([
-                function (done) {
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_hired", function (err, rows, fields) {
+                function (done) { //sukuriamas arba paimamas hired workeriu table
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `STATUS` INT(5) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_hired", function (err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -359,6 +360,92 @@ function GetWorkers(data, callback) {
 
             connection.release();
             return callback(null);
+        });
+    });
+}
+
+function GetAvailableWorkers(data, callback) {
+    callback = callback || function () { }
+
+    return new Promise(function (resolve, reject) {
+        var username = data.Uname;
+
+        connectionpool_tiles.getConnection(function (done) { //sukuriamas arba paimamas galimu samdyti workeriu sarasas
+            connection.query("CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `COST_UPFRONT` INT(30) NOT NULL,`COST` INT(30) NOT NULL,`NAME` VARCHAR(20) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB; SELECT * FROM ??", [data.Uname + "_workers_available", data.Uname + "_workers_available"], function (err, rows, fields) {
+                if (err) {
+                    reject(err);
+                    connection.release();
+                    return callback(err);
+                }
+
+                if (!rows) {//nera workeriu bei new worker refresh timerio. Generuojam VISKA.
+                    var post1 = { NAME: _refresh, COST: UnixTime() + 3600 }; //nustatom 1 val refresh laikotarpi
+                    //pirmi 3 randomized workeriai
+                    var post2 = Get3RandomWorkers();
+
+                    console.log("3 Workers: " + post2);
+
+                    connection.query("INSERT ? INTO ??; INSERT ? INTO ??", [post, data.Uname + "_workers_available", post2, data.Uname + "_workers_available"], function (err, rows, fields) {
+                        if (err) {
+                            reject(err);
+                            connection.release();
+                            return callback(err);
+                        }
+
+                        connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
+                        });
+                        resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                    });
+                } else {
+                    for (var x = 0; x < rows.length; x++) {
+                        if (rows[x].NAME == "_refresh") { //radom timeri, tikrinam ar jai galima refreshint
+                            if (rows[x].COST <= UnixTime()) {//ok, dedam new workerius
+                                //ismetam VISKA
+                                connection.query("TRUNCATE ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                    if (err) {
+                                        reject(err);
+                                        connection.release();
+                                        return callback(err);
+                                    }
+
+                                    //dedam viska new & fresh
+
+                                    var post1 = { NAME: _refresh, COST: UnixTime() + 3600 }; //nustatom 1 val refresh laikotarpi
+                                    //3 random workeriai
+                                    var post2 = Get3RandomWorkers();
+
+                                    console.log("3 Workers: " + post2);
+
+                                    connection.query("INSERT ? INTO ??; INSERT ? INTO ??", [post, data.Uname + "_workers_available", post2, data.Uname + "_workers_available"], function (err, rows, fields) {
+                                        if (err) {
+                                            reject(err);
+                                            connection.release();
+                                            return callback(err);
+                                        }
+
+                                        connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                            if (err) {
+                                                reject(err);
+                                                connection.release();
+                                                return callback(err);
+                                            }
+
+                                            resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                                        });
+                                    });
+                                });
+                            } else { //dar nepasibaiges, persiunciam senus.
+                                resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                            }
+                        }
+                    }
+                }
+            });
         });
     });
 }
@@ -885,17 +972,53 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
         var workerID = data.WorkerID;
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+            async.waterfall([function (done) { //paziurim ar tile laisva
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, assignedTileID], function (err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
                         return callback(err);
                     }
+
+                    if (rows[0].workerID != -1) { //jei jau yra workeris uzsiundytas ant tile
+                        //tile already worked, neturetu EVER praeiti i serveri sitas call. Discrepancy
+                        resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                    }
+
+                    done(null);
+                });
+            }, function (done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    if (!rows) { //discrepancy, tokio workerio nera.
+                    } else if (rows[0].working = true) { //jei jau yra workeris uzsiundytas ant tile
+                        //workeris busy, neturetu leist siaip praeit tokiem dalykam
+                        resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                    }
                     post.WorkerID = rows.insertId;
                     post.TileID = assignedTileID;
 
-                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    done(null);
+                });
+            }, function (done) { //ok uzmetam workeri ant tile
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+                    if (!rows) { //discrepancy, tokio workerio nera.
+                    } else if (rows[0].working = true) { //jei jau yra workeris uzsiundytas ant tile
+                        //workeris busy, neturetu leist siaip praeit tokiem dalykam
+                        resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+                    }
+                    post.WorkerID = rows.insertId;
+                    post.TileID = assignedTileID;
+
                     done(null);
                 });
             }], function (err) {
@@ -991,10 +1114,10 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
                                 connectionT.release();
                                 return callback(err);
                             }
-                            post.WorkerID = rows.insertId;
+                            worker.ID = rows.insertId;
                             post.Worker = worker;
 
-                            resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                            resolve({ call: "WORKER_HIRED_VERIFICATION", content: post });
                             done(null);
                         });
                 }], function (err) {
@@ -1016,21 +1139,19 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
-        var assignedTileID = data.AssignedTileID;
         var workerID = data.WorkerID;
 
         connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+            async.waterfall([function (done) { //paimam ta workeri ir istrinam basically
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
                         return callback(err);
                     }
-                    post.WorkerID = rows.insertId;
-                    post.TileID = assignedTileID;
+                    post.workerID = workerID;
 
-                    resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
+                    resolve({ call: "WORKER_FIRED_VERIFICATION", content: post });
                     done(null);
                 });
             }], function (err) {
@@ -1412,6 +1533,11 @@ function TakeAwayItem(item, amount, username) {
 
         connection.release();
     });
+}
+
+function Get3RandomWorkers() {
+    var post = [{ NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }, { NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }, { NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }];
+    return post;
 }
 
 function BanIP(ip, timeInSeconds, callback) {
