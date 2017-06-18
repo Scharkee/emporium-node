@@ -42,12 +42,8 @@ function ParseLogin(data, callback) {
         } else {//praleidziam
         }
 
-        var passStatus;
-
-        var sqlq = 'SELECT password FROM users WHERE username = ?';
-
         connectionpool.getConnection(function (err, connection) {
-            connection.query(sqlq, username, function (err, rows, fields) {
+            connection.query('SELECT password FROM users WHERE username = ?;', username, function (err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -72,10 +68,7 @@ function ParseLogin(data, callback) {
                         }
                     });
                 }
-
                 //else if(userpass == rows[0].password && loggedIn= true (is vieno acc tik is vienos vietos galima prisijungti))
-
-                //TODO: dupe account loggedin function that callbacks  PASS_CHECK_CALLBACK
             });
             connection.release();
             return callback(null);
@@ -370,81 +363,88 @@ function GetAvailableWorkers(data, callback) {
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (done) { //sukuriamas arba paimamas galimu samdyti workeriu sarasas
-            connection.query("CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `COST_UPFRONT` INT(30) NOT NULL,`COST` INT(30) NOT NULL,`NAME` VARCHAR(20) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB; SELECT * FROM ??", [data.Uname + "_workers_available", data.Uname + "_workers_available"], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function (err, connection) { //sukuriamas arba paimamas galimu samdyti workeriu sarasas
+            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `COST_UPFRONT` INT(30) NOT NULL,`COST` INT(30) NOT NULL,`NAME` VARCHAR(20) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_available", function (err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
                     return callback(err);
                 }
 
-                if (!rows) {//nera workeriu bei new worker refresh timerio. Generuojam VISKA.
-                    var post1 = { NAME: _refresh, COST: UnixTime() + 3600 }; //nustatom 1 val refresh laikotarpi
-                    //pirmi 3 randomized workeriai
-                    var post2 = Get3RandomWorkers();
+                connection.query('SELECT * FROM ??', data.Uname + "_workers_available", function (err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connection.release();
+                        return callback(err);
+                    }
 
-                    console.log("3 Workers: " + post2);
+                    if (!rows[0]) {//nera workeriu bei new worker refresh timerio. Generuojam VISKA.
+                        var post1 = [0, UnixTime() + 3600, "_refresh", 0]; //nustatom 1 val refresh laikotarpi
+                        //pirmi 3 randomized workeriai
+                        var post = GetRandomWorkers(3);
+                        post.push(post1);
+                        console.log(post);
 
-                    connection.query("INSERT ? INTO ??; INSERT ? INTO ??", [post, data.Uname + "_workers_available", post2, data.Uname + "_workers_available"], function (err, rows, fields) {
-                        if (err) {
-                            reject(err);
-                            connection.release();
-                            return callback(err);
-                        }
-
-                        connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post], function (err, rows, fields) {
                             if (err) {
                                 reject(err);
                                 connection.release();
                                 return callback(err);
                             }
+
+                            connection.query("SELECT * FROM ??;", data.Uname + "_workers_available", function (err, rows, fields) {
+                                if (err) {
+                                    reject(err);
+                                    connection.release();
+                                    return callback(err);
+                                }
+                            });
+                            resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
                         });
-                        resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
-                    });
-                } else {
-                    for (var x = 0; x < rows.length; x++) {
-                        if (rows[x].NAME == "_refresh") { //radom timeri, tikrinam ar jai galima refreshint
-                            if (rows[x].COST <= UnixTime()) {//ok, dedam new workerius
-                                //ismetam VISKA
-                                connection.query("TRUNCATE ??", data.Uname + "_workers_available", function (err, rows, fields) {
-                                    if (err) {
-                                        reject(err);
-                                        connection.release();
-                                        return callback(err);
-                                    }
-
-                                    //dedam viska new & fresh
-
-                                    var post1 = { NAME: _refresh, COST: UnixTime() + 3600 }; //nustatom 1 val refresh laikotarpi
-                                    //3 random workeriai
-                                    var post2 = Get3RandomWorkers();
-
-                                    console.log("3 Workers: " + post2);
-
-                                    connection.query("INSERT ? INTO ??; INSERT ? INTO ??", [post, data.Uname + "_workers_available", post2, data.Uname + "_workers_available"], function (err, rows, fields) {
+                    } else {
+                        for (var x = 0; x < rows.length; x++) {
+                            if (rows[x].NAME == "_refresh") { //radom timeri, tikrinam ar jai galima refreshint
+                                if (rows[x].COST <= UnixTime()) {//ok, dedam new workerius
+                                    //ismetam VISKA
+                                    connection.query("TRUNCATE ??", data.Uname + "_workers_available", function (err, rows, fields) {
                                         if (err) {
                                             reject(err);
                                             connection.release();
                                             return callback(err);
                                         }
 
-                                        connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                        //dedam viska new & fresh
+
+                                        var post1 = [0, UnixTime() + 3600, "_refresh", 0]; //nustatom 1 val refresh laikotarpi
+                                        //3 random workeriai
+                                        var post2 = GetRandomWorkers(3);
+                                        post2.push(post1);
+
+                                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post2], function (err, rows, fields) {
                                             if (err) {
                                                 reject(err);
                                                 connection.release();
                                                 return callback(err);
                                             }
 
-                                            resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                                            connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                                if (err) {
+                                                    reject(err);
+                                                    connection.release();
+                                                    return callback(err);
+                                                }
+
+                                                resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                                            });
                                         });
                                     });
-                                });
-                            } else { //dar nepasibaiges, persiunciam senus.
-                                resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                                } else { //dar nepasibaiges, persiunciam senus.
+                                    resolve({ call: "RECEIVE_AVAILABLE_WORKERS", content: { rows } });
+                                }
                             }
                         }
                     }
-                }
+                });
             });
         });
     });
@@ -1535,8 +1535,11 @@ function TakeAwayItem(item, amount, username) {
     });
 }
 
-function Get3RandomWorkers() {
-    var post = [{ NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }, { NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }, { NAME: NameGenerator.getRandomName(), COST: Math.random() * (500 - 100) + 100, COST_UPFRONT: Math.random() * (2000 - 1000) + 1000, SPEED: Math.random() * (100 - 1) + 1 }];
+function GetRandomWorkers(amount) {
+    var post = [];
+    for (var i = 0; i < amount; i++) {
+        post.push([(Math.random() * (2000 - 1000) + 1000).toFixed(1), (Math.random() * (500 - 100) + 100).toFixed(1), NameGenerator.getRandomName(), (Math.random() * (100 - 1) + 1).toFixed(1)]);
+    }
     return post;
 }
 
@@ -1698,5 +1701,6 @@ module.exports = {
     CheckForIPBan: CheckForIPBan,
     BanIP: BanIP,
     GetWorkers: GetWorkers,
+    GetAvailableWorkers: GetAvailableWorkers,
     UpdateLastloggedIn: UpdateLastloggedIn,
 };

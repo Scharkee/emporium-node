@@ -279,6 +279,18 @@ io.on("connection", function (socket) {
         }
     });
 
+    socket.on("GET_AVAILABLE_WORKERS", function (data) {
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.GetAvailableWorkers(data).then(function (data) {
+                socket.emit(data.call, data.content);
+            }).catch(function (err) {
+                console.error("error caught @ available worker getter :" + err);
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
+    });
+
     socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
         if (VerifyUser(data.Uname, socket.id)) {
             db.HandlePressWorkCollection(data).then(function (data) {
