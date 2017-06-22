@@ -31,7 +31,7 @@ const saltRounds = 10;
 function ParseLogin(data, callback) {
     // no default values in JS yet
     // make sure callback is initialized
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = CleanInput(data.Uname, 1);
@@ -73,11 +73,11 @@ function ParseLogin(data, callback) {
             connection.release();
             return callback(null);
         });
-    })
+    });
 }
 
 function ParsePasswordResetRequest(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = CleanInput(data.Uname, 1);
@@ -130,7 +130,7 @@ function ParsePasswordResetRequest(data, callback) {
 function ForgotPass(data, callback) {
     // no default values in JS yet
     // make sure callback is initialized
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var email = data.Email;
@@ -177,7 +177,7 @@ function ForgotPass(data, callback) {
             connection.release();
             return callback(null);
         });
-    })
+    });
 }
 
 function RegisterUser(data, callback) {
@@ -208,7 +208,7 @@ function RegisterUser(data, callback) {
 }
 
 function GetStats(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -240,7 +240,7 @@ function GetStats(data, callback) {
 }
 
 function GetTileData(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -278,7 +278,7 @@ function GetTileData(data, callback) {
 }
 
 function GetTransportQueues(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -318,7 +318,7 @@ function GetTransportQueues(data, callback) {
 }
 
 function GetWorkers(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -358,7 +358,7 @@ function GetWorkers(data, callback) {
 }
 
 function GetAvailableWorkers(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -451,7 +451,7 @@ function GetAvailableWorkers(data, callback) {
 }
 
 function GetTiles(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
 
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
@@ -474,7 +474,7 @@ function GetTiles(data, callback) {
 }
 
 function GetInventory(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
 
@@ -519,7 +519,7 @@ function GetInventory(data, callback) {
 }
 
 function HandleTilePurchase(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var buildingname = data.BuildingName;
@@ -638,7 +638,7 @@ function HandleTilePurchase(data, callback) {
 }
 
 function HandleTileSale(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var SellTileID = parseInt(data.SellTileID);
@@ -688,8 +688,9 @@ function HandleTileSale(data, callback) {
                  }, function (count, done) {
                      connectionT.release();
                      connection.release();
-                     return callback(null);
                      done(null);
+                     return callback(null);
+
                  }], function (err) {
                      if (err) return next(err);
                  });
@@ -699,7 +700,7 @@ function HandleTileSale(data, callback) {
 }
 
 function HandleTileAssignWork(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
@@ -762,7 +763,7 @@ function HandleTileAssignWork(data, callback) {
 }
 
 function HandleProduceSale(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
 
@@ -832,7 +833,7 @@ function HandleProduceSale(data, callback) {
                             } else {// viskas probs OK, sale allowed.
                                 post[saleDeser[i.toString() + "name"].toString()] = Number(rows[0][saleDeser[i + "name"]]) - Number(saleDeser[i + "amount"]); // naujas amountas paruosiamas postui i database.
 
-                                postMoney["dollars"] += saleDeser[i + "amount"] * findPrice(rowsPricings, saleDeser[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
+                                postMoney.dollars += saleDeser[i + "amount"] * findPrice(rowsPricings, saleDeser[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
                                 //paciam sale screen.( $/per kilograma)
                             }
                         }
@@ -869,8 +870,9 @@ function HandleProduceSale(data, callback) {
 
                         connection.release();
                         connectionT.release();
-                        return callback(null);
+
                         done(null);
+                        return callback(null);
                     });
                 }], function (err) {
                     console.log(err);
@@ -882,7 +884,7 @@ function HandleProduceSale(data, callback) {
 }
 
 function HandleProduceSaleJobAssignment(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var destination = data.Dest;
@@ -964,7 +966,7 @@ function HandleProduceSaleJobAssignment(data, callback) {
 }
 
 function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas ant specifiskos tile pagal ID
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
@@ -995,7 +997,7 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
                         return callback(err);
                     }
                     if (!rows) { //discrepancy, tokio workerio nera.
-                    } else if (rows[0].working = true) { //jei jau yra workeris uzsiundytas ant tile
+                    } else if (rows[0].working === true) { //jei jau yra workeris uzsiundytas ant tile
                         //workeris busy, neturetu leist siaip praeit tokiem dalykam
                         resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                     }
@@ -1012,7 +1014,7 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
                         return callback(err);
                     }
                     if (!rows) { //discrepancy, tokio workerio nera.
-                    } else if (rows[0].working = true) { //jei jau yra workeris uzsiundytas ant tile
+                    } else if (rows[0].working === true) { //jei jau yra workeris uzsiundytas ant tile
                         //workeris busy, neturetu leist siaip praeit tokiem dalykam
                         resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                     }
@@ -1034,7 +1036,7 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
 }
 
 function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziamas (nebedirba ant tile) pagal ID
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
@@ -1068,7 +1070,7 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
 }
 
 function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT)   ==Pretty much done this func
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
@@ -1135,7 +1137,7 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
 }
 
 function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP)
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var post = {};
         var username = data.Uname;
@@ -1169,7 +1171,7 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
 function HandleTileCollect(data, callback) {
     var chance = new Chance();
 
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
@@ -1265,7 +1267,7 @@ function HandleTileCollect(data, callback) {
 }
 
 function HandlePressWorkCollection(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
@@ -1349,7 +1351,7 @@ function HandlePressWorkCollection(data, callback) {
 }
 
 function HandlePlotsizeExpansion(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
         var DBdollars;
@@ -1403,7 +1405,7 @@ function UpdateLastloggedIn(username) {
 }
 
 function HandlePriceRetrieval(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         connectionpool.getConnection(function (err, connection) {
             connection.query('SELECT * FROM prices', function (err, rows, fields) {
@@ -1423,7 +1425,7 @@ function HandlePriceRetrieval(data, callback) {
 }
 
 function HandleBugReportSubmission(data, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         connectionpool.getConnection(function (err, connection) {
             post = { REPORT: data.report };
@@ -1445,13 +1447,14 @@ function HandleBugReportSubmission(data, callback) {
 }
 
 function CleanInput(a, mode) {
+  var b;
     switch (mode) {
         case 1:
-            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+            b = a.replace(/[^a-zA-Z0-9]/gi, '');
 
             break;
         case 2: //kitas refinery mode
-            var b = a.replace(/[^a-zA-Z0-9]/gi, '');
+            b = a.replace(/[^a-zA-Z0-9]/gi, '');
             break;
 
         case 3: // trecias refinery mode
@@ -1575,7 +1578,7 @@ function BanIP(ip, timeInSeconds, callback) {
 }
 
 function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         connectionpool.getConnection(function (err, connection) {
             async.waterfall([function (done) { //paziurim ar workeris laisvas
@@ -1623,7 +1626,7 @@ function findValue(o, value) {
 }
 
 function getInfoAndVerifyTile(ID, transport, username, callback) {
-    callback = callback || function () { }
+    callback = callback || function () { };
     return new Promise(function (resolve, reject) {
         var speed;
         var count;
