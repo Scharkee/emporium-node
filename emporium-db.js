@@ -1,3 +1,5 @@
+/*jshint esversion: 6 */
+
 var express = require('express');
 var router = express.Router();
 var Chance = require('chance');
@@ -245,22 +247,22 @@ function GetTileData(data, callback) {
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connection) {
+        connectionpool_tiles.getConnection(function (err, connectionT) {
             async.waterfall([
                 function (done) {
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
+                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
                         }
                     });
                     done(null);
                 }, function (done) {
-                    connection.query('SELECT * FROM ??', data.Uname, function (err, rows, fields) {
+                    connectionT.query('SELECT * FROM ??', data.Uname, function (err, rows, fields) {
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
                         }
 
@@ -271,7 +273,7 @@ function GetTileData(data, callback) {
                     if (err) return next(err);
                 });
 
-            connection.release();
+            connectionT.release();
             return callback(null);
         });
     });
@@ -283,23 +285,23 @@ function GetTransportQueues(data, callback) {
     return new Promise(function (resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connection) {
+        connectionpool_tiles.getConnection(function (err, connectionT) {
             async.waterfall([
                 function (done) {
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(1000) NOT NULL, `IndexInJobList` INT(5) NOT NULL  , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function (err, rows, fields) {
+                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(1000) NOT NULL, `IndexInJobList` INT(5) NOT NULL  , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function (err, rows, fields) {
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
                         }
                     });
 
                     done(null);
                 }, function (done) {
-                    connection.query('SELECT * FROM ??', data.Uname + "_transport", function (err, rows, fields) {
+                    connectionT.query('SELECT * FROM ??', data.Uname + "_transport", function (err, rows, fields) {
                         if (err) {
                             reject(err);
-                            connection.release();
+                            connectionT.release();
                             return callback(err);
                         }
 
@@ -311,7 +313,7 @@ function GetTransportQueues(data, callback) {
                     if (err) return next(err);
                 });
 
-            connection.release();
+            connectionT.release();
             return callback(null);
         });
     });
@@ -446,6 +448,8 @@ function GetAvailableWorkers(data, callback) {
                     }
                 });
             });
+            connection.release();
+            return callback(null);
         });
     });
 }
@@ -688,9 +692,9 @@ function HandleTileSale(data, callback) {
                  }, function (count, done) {
                      connectionT.release();
                      connection.release();
+
                      done(null);
                      return callback(null);
-
                  }], function (err) {
                      if (err) return next(err);
                  });
@@ -868,9 +872,9 @@ function HandleProduceSale(data, callback) {
                             }
                         });
 
-                        connection.release();
-                        connectionT.release();
 
+                        connectionT.release();
+                        connection.release();
                         done(null);
                         return callback(null);
                     });
@@ -1308,6 +1312,7 @@ function HandlePressWorkCollection(data, callback) {
                                 if (err) {
                                     reject(err);
                                     connection.release();
+                                    connectionT.release();
                                     return callback(err);
                                 }
 
@@ -1320,6 +1325,7 @@ function HandlePressWorkCollection(data, callback) {
                                     if (err) {
                                         reject(err);
                                         connection.release();
+                                        connectionT.release();
                                         return callback(err);
                                     }
                                 });
@@ -1332,6 +1338,7 @@ function HandlePressWorkCollection(data, callback) {
                                 if (err) {
                                     reject(err);
                                     connection.release();
+                                    connectionT.release();
                                     return callback(err);
                                 }
                             });
@@ -1447,7 +1454,7 @@ function HandleBugReportSubmission(data, callback) {
 }
 
 function CleanInput(a, mode) {
-  var b;
+    var b;
     switch (mode) {
         case 1:
             b = a.replace(/[^a-zA-Z0-9]/gi, '');
