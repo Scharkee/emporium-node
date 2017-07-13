@@ -1,5 +1,6 @@
 /*jshint esversion: 6 */
 
+require('dotenv').config();
 var express = require('express');
 var router = express.Router();
 var Chance = require('chance');
@@ -13,18 +14,18 @@ var NameGenerator = require('nodejs-randomnames');
 
 var connectionpool = mysql.createPool({
     connectionlimit: 100,
-    host: 'localhost',
-    user: 'emporium-node',
-    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium'
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_DATABASE_MAIN
 });
 
 var connectionpool_tiles = mysql.createPool({
     connectionlimit: 100,
-    host: 'localhost',
-    user: 'emporium-node',
-    password: 'jIQJhLtZY87u4v0OgtcNIvBfixfHkq',
-    database: 'emporium_users'
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_DATABASE_TILES
 });
 
 //salt roundai hashui
@@ -871,7 +872,6 @@ function HandleProduceSale(data, callback) {
                                 return callback(err);
                             }
                         });
-
 
                         connectionT.release();
                         connection.release();

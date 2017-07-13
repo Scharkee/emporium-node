@@ -12,11 +12,10 @@ var io = require('socket.io');
 
 // returns an instance of node-greenlock with additional helper methods
 var lex = require('greenlock-express').create({
-    server: 'https://acme-v01.api.letsencrypt.org/directory'
-, challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) }
-, store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' })
-
-, approveDomains: approveDomains
+    server: 'https://acme-v01.api.letsencrypt.org/directory',
+ challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) },
+ store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' }),
+ approveDomains: approveDomains
 });
 
 function approveDomains(opts, certs, cb) {
