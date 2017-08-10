@@ -34,19 +34,19 @@ const saltRounds = 10;
 function ParseLogin(data, callback) {
     // no default values in JS yet
     // make sure callback is initialized
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = CleanInput(data.Uname, 1);
         var userpass = data.Upass;
 
         if (userpass !== data.Upass || username !== data.Uname) {
             //   socket.emit("DISCREPANCY", { reasonString: "Discrepancy detected in input. Please try again. Shutting off...", action: 1 });   gamealerts on login screen dont work i dont think;
-        } else {//praleidziam
+        } else { //praleidziam
         }
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT password FROM users WHERE username = ?;', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT password FROM users WHERE username = ?;', username, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -59,8 +59,8 @@ function ParseLogin(data, callback) {
                 } else {
                     var pass = rows[0].password;
 
-                    bcrypt.compare(userpass, pass, function (err, res) {
-                        if (res === true) {//praleidziam
+                    bcrypt.compare(userpass, pass, function(err, res) {
+                        if (res === true) { //praleidziam
                             resolve({ status: 1 });
 
                             //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
@@ -80,21 +80,21 @@ function ParseLogin(data, callback) {
 }
 
 function ParsePasswordResetRequest(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = CleanInput(data.Uname, 1);
         var userpass = data.Upass;
 
         if (userpass !== data.Upass || username !== data.Uname) {
             //   socket.emit("DISCREPANCY", { reasonString: "Discrepancy detected in input. Please try again. Shutting off...", action: 1 });   gamealerts on login screen dont work i dont think;
-        } else {//praleidziam
+        } else { //praleidziam
         }
 
         var passStatus;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT password FROM users WHERE username = ?', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT password FROM users WHERE username = ?', username, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -107,8 +107,8 @@ function ParsePasswordResetRequest(data, callback) {
                 } else {
                     var pass = rows[0].password;
 
-                    bcrypt.compare(userpass, pass, function (err, res) {
-                        if (res === true) {//praleidziam
+                    bcrypt.compare(userpass, pass, function(err, res) {
+                        if (res === true) { //praleidziam
                             resolve({ status: 1 });
 
                             //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 1 });
@@ -133,13 +133,13 @@ function ParsePasswordResetRequest(data, callback) {
 function ForgotPass(data, callback) {
     // no default values in JS yet
     // make sure callback is initialized
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var email = data.Email;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM users WHERE email = ?', email, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM users WHERE email = ?', email, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -152,24 +152,26 @@ function ForgotPass(data, callback) {
                     //   socket.emit("PASS_CHECK_CALLBACK", { passStatus: 2 });
                 } else {
                     async.waterfall([
-                        function (done) {
-                            crypto.randomBytes(20, function (err, buf) {
+                        function(done) {
+                            crypto.randomBytes(20, function(err, buf) {
                                 var token = buf.toString('hex');
                                 done(err, token);
                             });
-                        }, function (done) {
+                        },
+                        function(done) {
                             var post = { reset_token: token, reset_date: UnixTime() + 3600 };
 
-                            connection.query('UPDATE users SET ? WHERE email = ?', [post, email], function (err, rows, fields) {
+                            connection.query('UPDATE users SET ? WHERE email = ?', [post, email], function(err, rows, fields) {
                                 if (err) {
                                     reject(err);
                                     connection.release();
                                     return callback(err);
                                 }
                             });
-                        }], function (err) {
-                            if (err) return next(err);
-                        });
+                        }
+                    ], function(err) {
+                        if (err) return next(err);
+                    });
 
                     //TODO: send email to reset password;
                     //TODO: generate token for password reset, and allow accessing it via webhandler.js (GET)
@@ -184,7 +186,7 @@ function ForgotPass(data, callback) {
 }
 
 function RegisterUser(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
     var username = data.Uname;
     var userpass = data.Upass;
@@ -192,11 +194,11 @@ function RegisterUser(data, callback) {
 
     console.log(username + " + " + userpass + " + " + email);
 
-    bcrypt.hash(userpass, saltRounds, function (err, hash) {
+    bcrypt.hash(userpass, saltRounds, function(err, hash) {
         var post = { username: username, password: hash, email: email, email_confirmed: 0 };
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('INSERT INTO users SET ?', post, function (err, result) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('INSERT INTO users SET ?', post, function(err, result) {
                 if (err) {
                     throw err;
                 }
@@ -211,26 +213,26 @@ function RegisterUser(data, callback) {
 }
 
 function GetStats(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM stats WHERE username = ?', username, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
                     return callback(err);
                 }
 
-                if (!rows.length) {//if DB finds no matches for username, create stats for that username.
+                if (!rows.length) { //if DB finds no matches for username, create stats for that username.
                     console.log("Creating default user stats for: " + username);
 
                     resolve({ dollars: 100, plotsize: 3, lastonline: UnixTime(), firstPlay: true });
 
                     InsertDefaultStats(username, 100, UnixTime(), 3);
-                } else {//if DB finds matches for username, persiunciam duomenis atgal i main JS faila.
+                } else { //if DB finds matches for username, persiunciam duomenis atgal i main JS faila.
                     var lastonlinestring = rows[0].lastonline.toString();
 
                     resolve({ dollars: rows[0].dollars, plotsize: rows[0].plotsize, lastonline: lastonlinestring, firstPlay: false });
@@ -243,15 +245,15 @@ function GetStats(data, callback) {
 }
 
 function GetTileData(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
             async.waterfall([
-                function (done) {
-                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function (err, rows, fields) {
+                function(done) {
+                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `NAME` VARCHAR(20) NOT NULL , `START_OF_GROWTH` VARCHAR(15) NOT NULL , `X` FLOAT(5) NOT NULL , `Z` FLOAT(5) NOT NULL , `FERTILISED_UNTIL` INT(10) NOT NULL ,`COUNT` INT(3) NOT NULL,`ASSIGNED_WORKER_ID` INT(3) NOT NULL , `BUILDING_CURRENT_WORK_AMOUNT` INT(10) NOT NULL, `WORK_NAME` VARCHAR(20) NOT NULL, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -259,8 +261,9 @@ function GetTileData(data, callback) {
                         }
                     });
                     done(null);
-                }, function (done) {
-                    connectionT.query('SELECT * FROM ??', data.Uname, function (err, rows, fields) {
+                },
+                function(done) {
+                    connectionT.query('SELECT * FROM ??', data.Uname, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -270,9 +273,10 @@ function GetTileData(data, callback) {
                         resolve({ rows });
                     });
                     done(null);
-                }], function (err) {
-                    if (err) return next(err);
-                });
+                }
+            ], function(err) {
+                if (err) return next(err);
+            });
 
             connectionT.release();
             return callback(null);
@@ -281,15 +285,15 @@ function GetTileData(data, callback) {
 }
 
 function GetTransportQueues(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
             async.waterfall([
-                function (done) {
-                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(1000) NOT NULL, `IndexInJobList` INT(5) NOT NULL  , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function (err, rows, fields) {
+                function(done) {
+                    connectionT.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT ,`DEST` VARCHAR(30) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `START_OF_TRANSPORTATION` INT(30) NOT NULL , `LENGTH_OF_TRANSPORTATION` INT(30) NOT NULL , `SALE` VARCHAR(1000) NOT NULL, `IndexInJobList` INT(5) NOT NULL  , PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_transport", function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -298,8 +302,9 @@ function GetTransportQueues(data, callback) {
                     });
 
                     done(null);
-                }, function (done) {
-                    connectionT.query('SELECT * FROM ??', data.Uname + "_transport", function (err, rows, fields) {
+                },
+                function(done) {
+                    connectionT.query('SELECT * FROM ??', data.Uname + "_transport", function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -310,9 +315,10 @@ function GetTransportQueues(data, callback) {
                     });
 
                     done(null);
-                }], function (err) {
-                    if (err) return next(err);
-                });
+                }
+            ], function(err) {
+                if (err) return next(err);
+            });
 
             connectionT.release();
             return callback(null);
@@ -321,15 +327,15 @@ function GetTransportQueues(data, callback) {
 }
 
 function GetWorkers(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connection) {
+        connectionpool_tiles.getConnection(function(err, connection) {
             async.waterfall([
-                function (done) { //sukuriamas arba paimamas hired workeriu table
-                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `STATUS` INT(5) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`ASSIGNEDTILEID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_hired", function (err, rows, fields) {
+                function(done) { //sukuriamas arba paimamas hired workeriu table
+                    connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `STATUS` INT(5) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL,`LAST_HARVEST` INT(30) NOT NULL,`WORKING_SINCE` INT(30) NOT NULL ,`ASSIGNED_TILE_ID` INT(10) NOT NULL , `DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_hired", function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -338,8 +344,9 @@ function GetWorkers(data, callback) {
                     });
 
                     done(null);
-                }, function (done) {
-                    connection.query('SELECT * FROM ??', data.Uname + "_workers_hired", function (err, rows, fields) {
+                },
+                function(done) {
+                    connection.query('SELECT * FROM ??', data.Uname + "_workers_hired", function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -350,9 +357,10 @@ function GetWorkers(data, callback) {
                     });
 
                     done(null);
-                }], function (err) {
-                    if (err) return next(err);
-                });
+                }
+            ], function(err) {
+                if (err) return next(err);
+            });
 
             connection.release();
             return callback(null);
@@ -361,41 +369,41 @@ function GetWorkers(data, callback) {
 }
 
 function GetAvailableWorkers(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool_tiles.getConnection(function (err, connection) { //sukuriamas arba paimamas galimu samdyti workeriu sarasas
-            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `COST_UPFRONT` INT(30) NOT NULL,`COST` INT(30) NOT NULL,`NAME` VARCHAR(20) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_available", function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connection) { //sukuriamas arba paimamas galimu samdyti workeriu sarasas
+            connection.query('CREATE TABLE IF NOT EXISTS ?? ( `ID` INT(10) NOT NULL AUTO_INCREMENT , `COST_UPFRONT` INT(30) NOT NULL,`COST` INT(30) NOT NULL,`NAME` VARCHAR(20) NOT NULL,`SPEED` DECIMAL(10,2) NOT NULL ,`DATE` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`ID`)) ENGINE = InnoDB;', data.Uname + "_workers_available", function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
                     return callback(err);
                 }
 
-                connection.query('SELECT * FROM ??', data.Uname + "_workers_available", function (err, rows, fields) {
+                connection.query('SELECT * FROM ??', data.Uname + "_workers_available", function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connection.release();
                         return callback(err);
                     }
 
-                    if (!rows[0]) {//nera workeriu bei new worker refresh timerio. Generuojam VISKA.
+                    if (!rows[0]) { //nera workeriu bei new worker refresh timerio. Generuojam VISKA.
                         var post1 = [0, UnixTime() + 3600, "_refresh", 0]; //nustatom 1 val refresh laikotarpi
                         //pirmi 3 randomized workeriai
                         var post = GetRandomWorkers(3);
                         post.push(post1);
                         console.log(post);
 
-                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post], function (err, rows, fields) {
+                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post], function(err, rows, fields) {
                             if (err) {
                                 reject(err);
                                 connection.release();
                                 return callback(err);
                             }
 
-                            connection.query("SELECT * FROM ??;", data.Uname + "_workers_available", function (err, rows, fields) {
+                            connection.query("SELECT * FROM ??;", data.Uname + "_workers_available", function(err, rows, fields) {
                                 if (err) {
                                     reject(err);
                                     connection.release();
@@ -407,9 +415,9 @@ function GetAvailableWorkers(data, callback) {
                     } else {
                         for (var x = 0; x < rows.length; x++) {
                             if (rows[x].NAME == "_refresh") { //radom timeri, tikrinam ar jai galima refreshint
-                                if (rows[x].COST <= UnixTime()) {//ok, dedam new workerius
+                                if (rows[x].COST <= UnixTime()) { //ok, dedam new workerius
                                     //ismetam VISKA
-                                    connection.query("TRUNCATE ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                    connection.query("TRUNCATE ??", data.Uname + "_workers_available", function(err, rows, fields) {
                                         if (err) {
                                             reject(err);
                                             connection.release();
@@ -423,14 +431,14 @@ function GetAvailableWorkers(data, callback) {
                                         var post2 = GetRandomWorkers(3);
                                         post2.push(post1);
 
-                                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post2], function (err, rows, fields) {
+                                        connection.query("INSERT INTO ?? (COST_UPFRONT,COST,NAME,SPEED) VALUES ?", [data.Uname + "_workers_available", post2], function(err, rows, fields) {
                                             if (err) {
                                                 reject(err);
                                                 connection.release();
                                                 return callback(err);
                                             }
 
-                                            connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function (err, rows, fields) {
+                                            connection.query("SELECT * FROM ??", data.Uname + "_workers_available", function(err, rows, fields) {
                                                 if (err) {
                                                     reject(err);
                                                     connection.release();
@@ -456,13 +464,13 @@ function GetAvailableWorkers(data, callback) {
 }
 
 function GetTiles(data, callback) {
-    callback = callback || function () { };
+    callback = callback || function() {};
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM buildings', function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM buildings', function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -479,12 +487,12 @@ function GetTiles(data, callback) {
 }
 
 function GetInventory(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -496,14 +504,14 @@ function GetInventory(data, callback) {
 
                     var post = { username: data.Uname };
 
-                    connection.query('INSERT INTO inventories SET ?', post, function (err, rows, fields) {
+                    connection.query('INSERT INTO inventories SET ?', post, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
                             return callback(err);
                         }
 
-                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
                             if (err) {
                                 reject(err);
                                 connection.release();
@@ -524,8 +532,8 @@ function GetInventory(data, callback) {
 }
 
 function HandleTilePurchase(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var buildingname = data.BuildingName;
         var DBdollars;
@@ -542,97 +550,99 @@ function HandleTilePurchase(data, callback) {
             console.log("tile doesnt exist");
         }
 
-        connectionpool.getConnection(function (err, connection) { //abu pools is karto uzvedam
-            connectionpool_tiles.getConnection(function (err, connectionT) {
+        connectionpool.getConnection(function(err, connection) { //abu pools is karto uzvedam
+            connectionpool_tiles.getConnection(function(err, connectionT) {
                 async.waterfall([
-    function (done) {
-        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
-            if (err) {
-                reject(err);
-                connection.release();
-                return callback(err);
-            }
+                    function(done) {
+                        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function(err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
 
-            DBdollars = rows[0].dollars;
-            done(err, DBdollars);
-        });
-    }, function (DBdollars, done) {
-        connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingname, function (err, rows, fields) {
-            if (err) {
-                reject(err);
-                connection.release();
-                return callback(err);
-            }
+                            DBdollars = rows[0].dollars;
+                            done(err, DBdollars);
+                        });
+                    },
+                    function(DBdollars, done) {
+                        connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingname, function(err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
 
-            DBBuildingPrice = rows[0].PRICE;
+                            DBBuildingPrice = rows[0].PRICE;
 
-            if (tileID === undefined) {//tile nera.
-                if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
-                    TakeAwayMoney(DBdollars, DBBuildingPrice, username);
+                            if (tileID === undefined) { //tile nera.
+                                if (DBdollars >= DBBuildingPrice) { //tile bought cuz enough money.
+                                    TakeAwayMoney(DBdollars, DBBuildingPrice, username);
 
-                    var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
+                                    var post = { NAME: buildingname, START_OF_GROWTH: UnixTime(), X: TileX, Z: TileZ, FERTILISED_UNTIL: 0, BUILDING_CURRENT_WORK_AMOUNT: 0, COUNT: count }; // matched querry , match up with tile tables for inserting  bought tile into DB.
 
-                    connectionT.query('INSERT INTO ?? SET ?', [username, post], function (err, rows, fields) {
-                        if (err) {
-                            reject(err);
-                            connection.release();
-                            return callback(err);
-                        }
+                                    connectionT.query('INSERT INTO ?? SET ?', [username, post], function(err, rows, fields) {
+                                        if (err) {
+                                            reject(err);
+                                            connection.release();
+                                            return callback(err);
+                                        }
 
-                        var callbackData = { call: "BUILD_TILE", content: { TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId } };
-                        resolve(callbackData);
-                    });
-                } else {//not enough dollars to buy boi
-                    var missing = DBBuildingPrice - DBdollars;
-                    var callbackData = { call: "NO_FUNDS", content: { missing: missing } };
-                    resolve(callbackData);
-                }
-            } else {//upgradinamas tile.
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
-                    if (err) {
-                        reject(err);
-                        connection.release();
-                        return callback(err);
-                    }
-
-                    count = rows[0].COUNT;
-
-                    if (count === 5) {
-                        console.log("tile at max upgrades"); //neturetu sitas buti atsiustas EVER
-                    } else {//proceed with the upgrade
-                        console.log("upgrading");
-
-                        count++;
-
-                        if (DBdollars >= DBBuildingPrice) {//tile bought cuz enough money.
-                            TakeAwayMoney(DBdollars, DBBuildingPrice, username);
-
-                            var post = { COUNT: count };   // matched querry , match up with tile tables for inserting  bought tile into DB.
-
-                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function (err, rows, fields) {
-                                if (err) {
-                                    reject(err);
-                                    connection.release();
-                                    return callback(err);
+                                        var callbackData = { call: "BUILD_TILE", content: { TileName: buildingname, TileX: TileX, TileZ: TileZ, ID: rows.insertId } };
+                                        resolve(callbackData);
+                                    });
+                                } else { //not enough dollars to buy boi
+                                    var missing = DBBuildingPrice - DBdollars;
+                                    var callbackData = { call: "NO_FUNDS", content: { missing: missing } };
+                                    resolve(callbackData);
                                 }
+                            } else { //upgradinamas tile.
+                                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
+                                    if (err) {
+                                        reject(err);
+                                        connection.release();
+                                        return callback(err);
+                                    }
 
-                                var callbackData = { call: "UPGRADE_TILE", content: { tileID: Number(tileID) } };
-                                resolve(callbackData);
-                            });
-                        } else {//not enough dollars to buy boi
-                            var missing = DBBuildingPrice - DBdollars;
-                            var callbackData = { call: "NO_FUNDS", content: { missing: missing } };
-                            resolve(callbackData);  //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
-                        }
+                                    count = rows[0].COUNT;
+
+                                    if (count === 5) {
+                                        console.log("tile at max upgrades"); //neturetu sitas buti atsiustas EVER
+                                    } else { //proceed with the upgrade
+                                        console.log("upgrading");
+
+                                        count++;
+
+                                        if (DBdollars >= DBBuildingPrice) { //tile bought cuz enough money.
+                                            TakeAwayMoney(DBdollars, DBBuildingPrice, username);
+
+                                            var post = { COUNT: count }; // matched querry , match up with tile tables for inserting  bought tile into DB.
+
+                                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function(err, rows, fields) {
+                                                if (err) {
+                                                    reject(err);
+                                                    connection.release();
+                                                    return callback(err);
+                                                }
+
+                                                var callbackData = { call: "UPGRADE_TILE", content: { tileID: Number(tileID) } };
+                                                resolve(callbackData);
+                                            });
+                                        } else { //not enough dollars to buy boi
+                                            var missing = DBBuildingPrice - DBdollars;
+                                            var callbackData = { call: "NO_FUNDS", content: { missing: missing } };
+                                            resolve(callbackData); //priimt sita cliente ir parodyt alerta, kad neuztenka pinigu (missing + kiek missina dollars)
+                                        }
+                                    }
+                                });
+                            }
+
+                            done(null);
+                        });
                     }
+                ], function(err) {
+                    if (err) return next(err);
                 });
-            }
-
-            done(null);
-        });
-    }], function (err) {
-        if (err) return next(err);
-    });
 
                 connectionT.release();
             });
@@ -643,70 +653,74 @@ function HandleTilePurchase(data, callback) {
 }
 
 function HandleTileSale(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var SellTileID = parseInt(data.SellTileID);
         var buildingName = data.TileName;
         var DBBuildingPrice;
         var count;
 
-        connectionpool.getConnection(function (err, connection) {
-            connectionpool_tiles.getConnection(function (err, connectionT) {
+        connectionpool.getConnection(function(err, connection) {
+            connectionpool_tiles.getConnection(function(err, connectionT) {
                 async.waterfall([
-                 function (done) {
-                     connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingName, function (err, rows, fields) {
-                         if (err) {
-                             reject(err);
-                             connection.release();
-                             return callback(err);
-                         }
+                    function(done) {
+                        connection.query('SELECT PRICE FROM buildings WHERE NAME = ?', buildingName, function(err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
 
-                         DBBuildingPrice = rows[0].PRICE;
-                         done(err, DBBuildingPrice);
-                     });
-                 }, function (DBBuildingPrice, done) {
-                     connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, SellTileID], function (err, rows, fields) {
-                         if (err) {
-                             reject(err);
-                             connection.release();
-                             return callback(err);
-                         }
+                            DBBuildingPrice = rows[0].PRICE;
+                            done(err, DBBuildingPrice);
+                        });
+                    },
+                    function(DBBuildingPrice, done) {
+                        connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, SellTileID], function(err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
 
-                         count = rows[0].COUNT;
-                         done(err, count);
-                     });
-                 }, function (count, done) {
-                     connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, SellTileID], function (err, rows, fields) {
-                         if (err) {
-                             reject(err);
-                             connection.release();
-                             return callback(err);
-                         }
+                            count = rows[0].COUNT;
+                            done(err, count);
+                        });
+                    },
+                    function(count, done) {
+                        connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, SellTileID], function(err, rows, fields) {
+                            if (err) {
+                                reject(err);
+                                connection.release();
+                                return callback(err);
+                            }
 
-                         resolve({ addFunds: (DBBuildingPrice / 4) * count });
+                            resolve({ addFunds: (DBBuildingPrice / 4) * count });
 
-                         AddMoney((DBBuildingPrice / 4) * count, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
+                            AddMoney((DBBuildingPrice / 4) * count, username); //sell rates subject to change. 25% atm, maybe too harsh IDK
 
-                         done(null);
-                     });
-                 }, function (count, done) {
-                     connectionT.release();
-                     connection.release();
+                            done(null);
+                        });
+                    },
+                    function(count, done) {
+                        connectionT.release();
+                        connection.release();
 
-                     done(null);
-                     return callback(null);
-                 }], function (err) {
-                     if (err) return next(err);
-                 });
+                        done(null);
+                        return callback(null);
+                    }
+                ], function(err) {
+                    if (err) return next(err);
+                });
             });
         });
     });
 }
 
 function HandleTileAssignWork(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
         var assignedWorkName = data.WorkName;
@@ -714,8 +728,8 @@ function HandleTileAssignWork(data, callback) {
         var DBdollars;
         var DBBuildingPrice;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -727,8 +741,8 @@ function HandleTileAssignWork(data, callback) {
                 if (tileCurrentWork !== 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
                     resolve({ call: "DISCREPANCY", content: { reasonString: "Timing discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                 } else {
-                    connectionpool.getConnection(function (err, connection) {
-                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+                    connectionpool.getConnection(function(err, connection) {
+                        connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
                             if (err) {
                                 reject(err);
                                 connection.release();
@@ -742,7 +756,7 @@ function HandleTileAssignWork(data, callback) {
 
                                 var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
 
-                                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function (err, rows, fields) { // reset tile growth time
+                                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function(err, rows, fields) { // reset tile growth time
                                     if (err) {
                                         reject(err);
                                         connection.release();
@@ -767,9 +781,131 @@ function HandleTileAssignWork(data, callback) {
     });
 }
 
+// function HandleAssignWorkerToTile(data, callback) {
+//     callback = callback || function() {};
+//     return new Promise(function(resolve, reject) {
+//         var username = data.Uname;
+//         var tileID = data.TileID;
+//         var workerID = data.WorkerID;
+
+
+//         connectionpool_tiles.getConnection(function(err, connectionT) {
+
+//             async.waterfall([function(done) {
+//                     var Tile = {};
+//                     //getting assigned tile information
+//                     connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
+//                         if (err) {
+//                             reject(err);
+//                             connection.release();
+//                             return callback(err);
+//                         }
+
+//                         Tile = rows[0];
+//                         done(err, Tile);
+//                     });
+
+
+//                 }, function(Tile, done) {
+//                     var Worker = {};
+//                     //getting assigned worker information
+//                     connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", Number(workerID)], function(err, rows, fields) {
+//                         if (err) {
+//                             reject(err);
+//                             connection.release();
+//                             return callback(err);
+//                         }
+
+//                         Worker = rows[0];
+
+//                         if (Worker.ASSIGNEDTILEID == -1 && Tile.ASSIGNED_WORKER_ID == -1) { //all fine (placeholderiai vietoj)
+//                             //assigninam workeriui tileid, o tile - workerid.
+
+//                             var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
+
+//                             connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function(err, rows, fields) { // reset tile growth time
+//                                 if (err) {
+//                                     reject(err);
+//                                     connection.release();
+//                                     return callback(err);
+//                                 }
+//                             });
+
+
+//                         }else{
+
+//                             if(Worker.ASSIGNEDTILEID!=-1){
+//                                 console.log("worker not free");
+
+//                             }else if( Tile.ASSIGNED_WORKER_ID != -1){
+//                                 console.log("tile is already being worked");
+
+//                             }
+//                         }
+//                     });
+
+
+
+//                 }],
+//                 function(err) {
+
+//                     console.log("done deal");
+//                 });
+//             connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
+//                 if (err) {
+//                     reject(err);
+//                     connection.release();
+//                     return callback(err);
+//                 }
+
+//                 tileCurrentWork = rows[0].BUILDING_CURRENT_WORK_AMOUNT;
+
+//                 if (tileCurrentWork !== 0) { //hasnt finished work yet, but the call came trough. DISCREPENCY
+//                     resolve({ call: "DISCREPANCY", content: { reasonString: "Timing discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+//                 } else {
+//                     connectionpool.getConnection(function(err, connection) {
+//                         connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
+//                             if (err) {
+//                                 reject(err);
+//                                 connection.release();
+//                                 return callback(err);
+//                             }
+
+//                             console.log("lookin to get some juice from " + assignedWorkName);
+
+//                             if (rows[0][assignedWorkName] >= assignedWorkAmmount) {
+//                                 console.log(rows[0][assignedWorkName] + " is the name");
+
+//                                 var post = { START_OF_GROWTH: UnixTime(), BUILDING_CURRENT_WORK_AMOUNT: assignedWorkAmmount, WORK_NAME: assignedWorkName };
+
+//                                 connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post, tileID], function(err, rows, fields) { // reset tile growth time
+//                                     if (err) {
+//                                         reject(err);
+//                                         connection.release();
+//                                         return callback(err);
+//                                     }
+//                                 });
+
+//                                 TakeAwayItem(assignedWorkName, assignedWorkAmmount, username);
+
+//                                 resolve({ tileID: tileID, unixBuffer: UnixTime().toString(), currentWorkName: assignedWorkName, currentWorkAmount: assignedWorkAmmount }); //cliente resettinamas tile growth.
+//                             } else {
+//                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
+//                             }
+//                         });
+//                         connection.release();
+//                     });
+//                 }
+//             });
+//             connectionT.release();
+//             return callback(null);
+//         });
+//     });
+// }
+
 function HandleProduceSale(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
 
         var SaleID = data.ID;
@@ -780,15 +916,16 @@ function HandleProduceSale(data, callback) {
         var saleDeser;
         var job;
 
-        connectionpool.getConnection(function (err, connection) {
-            connectionpool_tiles.getConnection(function (err, connectionT) {
-                async.waterfall([function (done) {
-                    connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function (err, rowse, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connectionpool_tiles.getConnection(function(err, connectionT) {
+                async.waterfall([function(done) {
+                    connectionT.query('SELECT * FROM ?? WHERE ID=?', [username + "_transport", SaleID], function(err, rowse, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
                             return callback(err);
-                        } if (!rowse) {
+                        }
+                        if (!rowse) {
                             resolve({ call: "DISCREPANCY", content: { reasonString: "Job discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         }
                         console.log(rowse[0]);
@@ -801,8 +938,8 @@ function HandleProduceSale(data, callback) {
                         }
                         done(null);
                     });
-                }, function (done) {
-                    connection.query('SELECT * FROM prices', function (err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
+                }, function(done) {
+                    connection.query('SELECT * FROM prices', function(err, rowsP, fields) { //getting prices for adding money for the sales. Current pricings might be a lot of info. (check)
                         if (err) {
                             reject(err);
                             connection.release();
@@ -812,8 +949,8 @@ function HandleProduceSale(data, callback) {
                         rowsPricings = rowsP;
                         done(null);
                     });
-                }, function (done) {
-                    connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rowsM, fields) { //getting dollars for adding money later
+                }, function(done) {
+                    connection.query('SELECT * FROM stats WHERE username = ?', username, function(err, rowsM, fields) { //getting dollars for adding money later
                         if (err) {
                             reject(err);
                             connection.release();
@@ -823,8 +960,8 @@ function HandleProduceSale(data, callback) {
                         postMoney = rowsM[0];
                         done(null);
                     });
-                }, function (done) {
-                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+                }, function(done) {
+                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -835,7 +972,7 @@ function HandleProduceSale(data, callback) {
                             if (Number(rows[0][saleDeser[i + "name"]]) < Number(saleDeser[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                                 console.log("ok1");
-                            } else {// viskas probs OK, sale allowed.
+                            } else { // viskas probs OK, sale allowed.
                                 post[saleDeser[i.toString() + "name"].toString()] = Number(rows[0][saleDeser[i + "name"]]) - Number(saleDeser[i + "amount"]); // naujas amountas paruosiamas postui i database.
 
                                 postMoney.dollars += saleDeser[i + "amount"] * findPrice(rowsPricings, saleDeser[i + "name"]); //RASTI PAGAL VARDA KAINA sitam objekte somehow. Multiplication dollars per KG. Tuos pacius pricings galima rodyti ir
@@ -845,8 +982,8 @@ function HandleProduceSale(data, callback) {
 
                         done(null);
                     });
-                }, function (done) {
-                    connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                }, function(done) {
+                    connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -855,8 +992,8 @@ function HandleProduceSale(data, callback) {
 
                         done(null);
                     });
-                }, function (done) {
-                    connection.query('UPDATE stats SET ? WHERE username = ?', [postMoney, username], function (err, rowsM, fields) { //adding all the monay
+                }, function(done) {
+                    connection.query('UPDATE stats SET ? WHERE username = ?', [postMoney, username], function(err, rowsM, fields) { //adding all the monay
                         if (err) {
                             reject(err);
                             connection.release();
@@ -865,7 +1002,7 @@ function HandleProduceSale(data, callback) {
 
                         resolve({ call: "SALE_VERIFICATION", content: postMoney });
 
-                        connectionT.query('DELETE FROM ?? WHERE ID = ?', [username + "_transport", SaleID], function (err, rowse, fields) {
+                        connectionT.query('DELETE FROM ?? WHERE ID = ?', [username + "_transport", SaleID], function(err, rowse, fields) {
                             if (err) {
                                 reject(err);
                                 connectionT.release();
@@ -878,7 +1015,7 @@ function HandleProduceSale(data, callback) {
                         done(null);
                         return callback(null);
                     });
-                }], function (err) {
+                }], function(err) {
                     console.log(err);
                     if (err) return next(err);
                 });
@@ -888,8 +1025,8 @@ function HandleProduceSale(data, callback) {
 }
 
 function HandleProduceSaleJobAssignment(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var destination = data.Dest;
         var salesNum = data.salesNum;
@@ -901,10 +1038,10 @@ function HandleProduceSaleJobAssignment(data, callback) {
 
         sale = JSON.stringify(dataPre);
 
-        connectionpool.getConnection(function (err, connection) {
-            connectionpool_tiles.getConnection(function (err, connectionT) {
-                async.waterfall([function (done) {
-                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connectionpool_tiles.getConnection(function(err, connectionT) {
+                async.waterfall([function(done) {
+                    connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -914,14 +1051,14 @@ function HandleProduceSaleJobAssignment(data, callback) {
                         for (var i = 0; i < salesNum; i++) { //prasideda nuo 0
                             if (Number(rows[0][data[i + "name"]]) < Number(data[i + "amount"])) { // per mazai in database. Client praleido nors negali taip but. DISCREPENCY.
                                 resolve({ call: "DISCREPANCY", content: { reasonString: "Produce amount discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
-                            } else {// viskas probs OK, sale allowed.(eina checkas tik del discrepancy. Siaip nieks nevyksta)
+                            } else { // viskas probs OK, sale allowed.(eina checkas tik del discrepancy. Siaip nieks nevyksta)
                                 totalWeight += Number(data[i + "amount"]);
                             }
                         }
 
                         // patvirtinamas tranportacijos budas + paiimamas speed;
 
-                        getInfoAndVerifyTile(data.TransportID, data.Transport, username).then(function (rezz) {
+                        getInfoAndVerifyTile(data.TransportID, data.Transport, username).then(function(rezz) {
                             if (!rezz.tile) { //nera transporto tile
                                 transport[0].PROG_AMOUNT = 600;
                                 transport.TILEPRODUCENAME = 30;
@@ -937,12 +1074,12 @@ function HandleProduceSaleJobAssignment(data, callback) {
                             post = { DEST: destination, START_OF_TRANSPORTATION: UnixTime(), LENGTH_OF_TRANSPORTATION: transport[0].PROG_AMOUNT, SALE: sale, IndexInJobList: data.IndexInJobList };
 
                             done(null);
-                        }).catch(function (err) {
+                        }).catch(function(err) {
                             resolve({ call: "DISCREPANCY", content: { reasonString: "Transport discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                         });
                     });
-                }, function (done) { //pushinam ta sale orderi faaar awaay i DB.
-                    connectionT.query('INSERT INTO ?? SET ?', [username + "_transport", post], function (err, rows, fields) {
+                }, function(done) { //pushinam ta sale orderi faaar awaay i DB.
+                    connectionT.query('INSERT INTO ?? SET ?', [username + "_transport", post], function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connectionT.release();
@@ -954,7 +1091,7 @@ function HandleProduceSaleJobAssignment(data, callback) {
                         resolve({ call: "SALE_JOB_VERIFICATION", content: post });
                         done(null);
                     });
-                }], function (err) {
+                }], function(err) {
                     if (err) {
                         console.log(err);
                         return next(err);
@@ -969,17 +1106,17 @@ function HandleProduceSaleJobAssignment(data, callback) {
     });
 }
 
-function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas ant specifiskos tile pagal ID
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+function HandleWorkerAssignment(data, callback) { //TODO: Workeris uzsiundomas ant specifiskos tile pagal ID
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var post = {};
         var username = data.Uname;
         var assignedTileID = data.AssignedTileID;
         var workerID = data.WorkerID;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paziurim ar tile laisva
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, assignedTileID], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            async.waterfall([function(done) { //paziurim ar tile laisva
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, assignedTileID], function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
@@ -993,15 +1130,15 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
 
                     done(null);
                 });
-            }, function (done) { //paziurim ar workeris laisvas
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
+            }, function(done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
                         return callback(err);
                     }
                     if (!rows) { //discrepancy, tokio workerio nera.
-                    } else if (rows[0].working === true) { //jei jau yra workeris uzsiundytas ant tile
+                    } else if (rows[0].ASSIGNED_TILE_ID != -1) { //jei jau yra workeris uzsiundytas ant tile
                         //workeris busy, neturetu leist siaip praeit tokiem dalykam
                         resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
                     }
@@ -1010,24 +1147,29 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
 
                     done(null);
                 });
-            }, function (done) { //ok uzmetam workeri ant tile
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
+            }, function(done) { //ok uzmetam workeri ant tile
+                var thePost = { ASSIGNED_TILE_ID: assignedTileID, WORKING_SINCE: UnixTime() }
+                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username + "_workers_hired", thePost, workerID], function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
                         return callback(err);
                     }
-                    if (!rows) { //discrepancy, tokio workerio nera.
-                    } else if (rows[0].working === true) { //jei jau yra workeris uzsiundytas ant tile
-                        //workeris busy, neturetu leist siaip praeit tokiem dalykam
-                        resolve({ call: "DISCREPANCY", content: { reasonString: "Worker discrepancy detected. Resynchronization is mandatory. Shutting off...", action: 1 } });
-                    }
-                    post.WorkerID = rows.insertId;
-                    post.TileID = assignedTileID;
 
                     done(null);
                 });
-            }], function (err) {
+            }, function(done) { //pazymim tile dokumente workerio ID
+                var thePost = { ASSIGNED_WORKER_ID: workerID }
+                connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, thePost, assignedTileID], function(err, rows, fields) {
+                    if (err) {
+                        reject(err);
+                        connectionT.release();
+                        return callback(err);
+                    }
+
+                    done(null);
+                });
+            }], function(err) {
                 if (err) {
                     console.log(err);
                     return next(err);
@@ -1040,16 +1182,16 @@ function HandleWorkerAssignment(data, callback) {//TODO: Workeris uzsiundomas an
 }
 
 function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziamas (nebedirba ant tile) pagal ID
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var post = {};
         var username = data.Uname;
         var assignedTileID = data.AssignedTileID;
         var workerID = data.WorkerID;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            async.waterfall([function(done) { //paziurim ar workeris laisvas
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_transport", workerID], function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
@@ -1061,7 +1203,7 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
                     resolve({ call: "WORKER_ASSIGNMENT_VERIFICATION", content: post });
                     done(null);
                 });
-            }], function (err) {
+            }], function(err) {
                 if (err) {
                     console.log(err);
                     return next(err);
@@ -1074,8 +1216,8 @@ function HandleWorkerUnAssignment(data, callback) { //TODO: Workeris paleidziama
 }
 
 function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT)   ==Pretty much done this func
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var post = {};
         var username = data.Uname;
         var assignedTileID = data.AssignedTileID;
@@ -1088,10 +1230,10 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
         //TODO: panel for worker stuff (hires, fires, management)
         //TODO: baigus workers perziuret VISA projekta del connection.release'u.
 
-        connectionpool.getConnection(function (err, connection) {
-            connectionpool_tiles.getConnection(function (err, connectionT) {
-                async.waterfall([function (done) { //idedam nauja worker i DB
-                    connection.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_available", workerID], function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connectionpool_tiles.getConnection(function(err, connectionT) {
+                async.waterfall([function(done) { //idedam nauja worker i DB
+                    connection.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_available", workerID], function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -1101,8 +1243,8 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
                         worker = rows[0];
                         done(null);
                     });
-                }, function (done) { //idedam nauja worker i DB
-                    connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
+                }, function(done) { //idedam nauja worker i DB
+                    connection.query('SELECT * FROM stats WHERE username = ?', username, function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -1112,9 +1254,9 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
                         DBdollars = rows[0].dollars;
                         done(null);
                     });
-                }, function (done) { //idedam nauja worker i DB jei pakanka dollars
+                }, function(done) { //idedam nauja worker i DB jei pakanka dollars
                     if (DBdollars >= worker.hireCost)
-                        connectionT.query('INSERT ? INTO ??', [worker, username + "_workers_hired"], function (err, rows, fields) {
+                        connectionT.query('INSERT ? INTO ??', [worker, username + "_workers_hired"], function(err, rows, fields) {
                             if (err) {
                                 reject(err);
                                 connectionT.release();
@@ -1126,7 +1268,7 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
                             resolve({ call: "WORKER_HIRED_VERIFICATION", content: post });
                             done(null);
                         });
-                }], function (err) {
+                }], function(err) {
                     if (err) {
                         console.log(err);
                         return next(err);
@@ -1141,15 +1283,15 @@ function HandleWorkerHired(data, callback) { //TODO: Workeris nusamdomas (INSERT
 }
 
 function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP)
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var post = {};
         var username = data.Uname;
         var workerID = data.WorkerID;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            async.waterfall([function (done) { //paimam ta workeri ir istrinam basically
-                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            async.waterfall([function(done) { //paimam ta workeri ir istrinam basically
+                connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username + "_workers_hired", workerID], function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connectionT.release();
@@ -1160,7 +1302,7 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
                     resolve({ call: "WORKER_FIRED_VERIFICATION", content: post });
                     done(null);
                 });
-            }], function (err) {
+            }], function(err) {
                 if (err) {
                     console.log(err);
                     return next(err);
@@ -1175,8 +1317,8 @@ function HandleWorkerFired(data, callback) { //TODO: Workeris atleidziamas (DROP
 function HandleTileCollect(data, callback) {
     var chance = new Chance();
 
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
         var tileProgAmount;
@@ -1189,8 +1331,8 @@ function HandleTileCollect(data, callback) {
         var tileProduceRandomRange1;
         var tileProduceRandomRange2;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -1201,8 +1343,8 @@ function HandleTileCollect(data, callback) {
                 tileGrowthStart = rows[0].START_OF_GROWTH;
                 tileCount = rows[0].COUNT;
 
-                connectionpool.getConnection(function (err, connection) {
-                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+                connectionpool.getConnection(function(err, connection) {
+                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function(err, rows, fields) {
                         tileProgAmount = rows[0].PROG_AMOUNT;
 
                         tileProduceName = rows[0].TILEPRODUCENAME;
@@ -1210,12 +1352,12 @@ function HandleTileCollect(data, callback) {
                         tileProduceRandomRange2 = rows[0].TILEPRODUCERANDOM2;
                         singleUse = rows[0].SINGLE_USE;
 
-                        var prog = Number(tileGrowthStart) + tileProgAmount;   //FIXME: Number() because of varchar in MYSQL
+                        var prog = Number(tileGrowthStart) + tileProgAmount; //FIXME: Number() because of varchar in MYSQL
 
-                        if (UnixTime() >= prog) {//Resetting tile progress and adding items to inventory
+                        if (UnixTime() >= prog) { //Resetting tile progress and adding items to inventory
                             var randProduce = chance.floating({ min: tileProduceRandomRange1, max: tileProduceRandomRange2 }).toFixed(2); //randomized produce kiekis
 
-                            connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) {
                                     reject(err);
                                     connection.release();
@@ -1226,7 +1368,7 @@ function HandleTileCollect(data, callback) {
                                 var post = {};
                                 post[tileProduceName] = newProduceAmount;
 
-                                connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function(err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                     if (err) {
                                         reject(err);
                                         connection.release();
@@ -1235,7 +1377,7 @@ function HandleTileCollect(data, callback) {
                                 });
 
                                 if (singleUse === 1) {
-                                    connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, tileID], function (err, rows, fields) {
+                                    connectionT.query('DELETE FROM ?? WHERE ID = ?', [username, tileID], function(err, rows, fields) {
                                         if (err) {
                                             reject(err);
                                             connection.release();
@@ -1247,7 +1389,7 @@ function HandleTileCollect(data, callback) {
                                 }
                             });
 
-                            connectionT.query('UPDATE ?? SET START_OF_GROWTH = ? WHERE ID = ?', [username, UnixTime(), tileID], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            connectionT.query('UPDATE ?? SET START_OF_GROWTH = ? WHERE ID = ?', [username, UnixTime(), tileID], function(err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) {
                                     reject(err);
                                     connection.release();
@@ -1271,8 +1413,8 @@ function HandleTileCollect(data, callback) {
 }
 
 function HandlePressWorkCollection(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var tileID = data.TileID;
         var tileProgAmount;
@@ -1280,8 +1422,8 @@ function HandlePressWorkCollection(data, callback) {
         var tileGrowthStart;
         var tileWorkAmount;
 
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function (err, rows, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            connectionT.query('SELECT * FROM ?? WHERE ID = ?', [username, Number(tileID)], function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -1294,21 +1436,21 @@ function HandlePressWorkCollection(data, callback) {
                 tileWorkName = rows[0].WORK_NAME;
                 tileEfic = rows[0].EFIC;
 
-                connectionpool.getConnection(function (err, connection) {
-                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function (err, rows, fields) {
+                connectionpool.getConnection(function(err, connection) {
+                    connection.query('SELECT * FROM buildings WHERE NAME = ?', tileName, function(err, rows, fields) {
                         PressSpeed = rows[0].PROG_AMOUNT / 100;
 
                         PressProduceName = rows[0].TILEPRODUCENAME;
                         PressEfficiency = tileEfic;
 
-                        var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed;   //FIXME: Number() because of varchar in MYSQL
+                        var prog = Number(tileGrowthStart) + tileWorkAmount * PressSpeed; //FIXME: Number() because of varchar in MYSQL
 
                         if (UnixTime() >= prog) {
                             //Resetting tile progress and adding items to inventory
 
                             var JuiceProduceAmount = tileWorkAmount * PressEfficiency;
 
-                            connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                            connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                 if (err) {
                                     reject(err);
                                     connection.release();
@@ -1321,7 +1463,7 @@ function HandlePressWorkCollection(data, callback) {
                                 var post = {};
                                 post[tileWorkName + "_" + PressProduceName] = newProduceAmount;
 
-                                connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) { // prideti prie egzistuojanciu apelsinu
+                                connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function(err, rows, fields) { // prideti prie egzistuojanciu apelsinu
                                     if (err) {
                                         reject(err);
                                         connection.release();
@@ -1334,7 +1476,7 @@ function HandlePressWorkCollection(data, callback) {
                             });
                             var post1 = { BUILDING_CURRENT_WORK_AMOUNT: 0, WORK_NAME: "", START_OF_GROWTH: 0 };
 
-                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post1, tileID], function (err, rows, fields) { // resetinam progresa
+                            connectionT.query('UPDATE ?? SET ? WHERE ID = ?', [username, post1, tileID], function(err, rows, fields) { // resetinam progresa
                                 if (err) {
                                     reject(err);
                                     connection.release();
@@ -1358,14 +1500,14 @@ function HandlePressWorkCollection(data, callback) {
 }
 
 function HandlePlotsizeExpansion(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var username = data.Uname;
         var DBdollars;
         var currentPlotsize;
 
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM stats WHERE username = ?', username, function (err, rows, fields) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM stats WHERE username = ?', username, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -1379,7 +1521,7 @@ function HandlePlotsizeExpansion(data, callback) {
                 if (DBdollars >= Math.pow(10, currentPlotsize - 1)) { //uztenka praplesti plotui
                     post = { plotsize: currentPlotsize + 1, dollars: (DBdollars - Math.pow(10, currentPlotsize)) };
 
-                    connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+                    connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function(err, rows, fields) {
                         if (err) {
                             reject(err);
                             connection.release();
@@ -1401,9 +1543,9 @@ function HandlePlotsizeExpansion(data, callback) {
 }
 
 function UpdateLastloggedIn(username) {
-    connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function(err, connection) {
         var post = { lastonline: UnixTime() };
-        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+        connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function(err, rows, fields) {
             if (err) throw err;
         });
 
@@ -1412,10 +1554,10 @@ function UpdateLastloggedIn(username) {
 }
 
 function HandlePriceRetrieval(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
-        connectionpool.getConnection(function (err, connection) {
-            connection.query('SELECT * FROM prices', function (err, rows, fields) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
+        connectionpool.getConnection(function(err, connection) {
+            connection.query('SELECT * FROM prices', function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -1432,12 +1574,12 @@ function HandlePriceRetrieval(data, callback) {
 }
 
 function HandleBugReportSubmission(data, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
-        connectionpool.getConnection(function (err, connection) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
+        connectionpool.getConnection(function(err, connection) {
             post = { REPORT: data.report };
 
-            connection.query('INSERT INTO bugreports SET ?', post, function (err, rows, fields) {
+            connection.query('INSERT INTO bugreports SET ?', post, function(err, rows, fields) {
                 if (err) {
                     reject(err);
                     connection.release();
@@ -1480,8 +1622,8 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
     var post = { username: username, dollars: dollars, lastonline: lastonline, plotsize: plotsize };
 
     console.log("inserting default stats into DB");
-    connectionpool.getConnection(function (err, connection) { // starting a stats table entry for new client
-        connection.query('INSERT INTO stats SET ?', post, function (err, rows, fields) {
+    connectionpool.getConnection(function(err, connection) { // starting a stats table entry for new client
+        connection.query('INSERT INTO stats SET ?', post, function(err, rows, fields) {
             if (err) throw err;
         });
 
@@ -1489,7 +1631,7 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 
         //starting a inventories table entry for new client
 
-        connection.query('INSERT INTO inventories SET ?', postInventories, function (err, rows, fields) {
+        connection.query('INSERT INTO inventories SET ?', postInventories, function(err, rows, fields) {
             if (err) throw err;
         });
         connection.release();
@@ -1497,11 +1639,11 @@ function InsertDefaultStats(username, dollars, lastonline, plotsize) {
 }
 
 function TakeAwayMoney(money, lostmoney, username) {
-    connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function(err, connection) {
         var remaining = money - lostmoney;
         var post = { dollars: remaining };
 
-        connection.query('UPDATE stats SET ? WHERE username = ? ', [post, username], function (err, rows, fields) {
+        connection.query('UPDATE stats SET ? WHERE username = ? ', [post, username], function(err, rows, fields) {
             if (err) throw err;
         });
         connection.release();
@@ -1509,15 +1651,15 @@ function TakeAwayMoney(money, lostmoney, username) {
 }
 
 function AddMoney(addedmoney, username) {
-    connectionpool.getConnection(function (err, connection) {
-        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function (err, rows, fields) {
+    connectionpool.getConnection(function(err, connection) {
+        connection.query('SELECT dollars FROM stats WHERE username = ?', username, function(err, rows, fields) {
             if (err) throw err;
 
             var DBdollars = rows[0].dollars;
             var newmoney = DBdollars + addedmoney;
             var post = { dollars: newmoney };
 
-            connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+            connection.query('UPDATE stats SET ? WHERE username = ?', [post, username], function(err, rows, fields) {
                 if (err) throw err;
             });
         });
@@ -1526,17 +1668,17 @@ function AddMoney(addedmoney, username) {
 }
 
 function TakeAwayItem(item, amount, username) {
-    connectionpool.getConnection(function (err, connection) {
-        connection.query('SELECT * FROM inventories WHERE username = ?', username, function (err, rows, fields) {
+    connectionpool.getConnection(function(err, connection) {
+        connection.query('SELECT * FROM inventories WHERE username = ?', username, function(err, rows, fields) {
             if (err) throw err;
 
             var remaining = rows[0][item] - amount;
             var post = {};
-            post[item] = remaining;//FIXME
+            post[item] = remaining; //FIXME
 
             console.log(post);
 
-            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function (err, rows, fields) {
+            connection.query('UPDATE inventories SET ? WHERE username = ?', [post, username], function(err, rows, fields) {
                 if (err) throw err;
             });
         });
@@ -1554,23 +1696,23 @@ function GetRandomWorkers(amount) {
 }
 
 function BanIP(ip, timeInSeconds, callback) {
-    connectionpool.getConnection(function (err, connection) {
+    connectionpool.getConnection(function(err, connection) {
         //patikrinimas, ar nera egzistuojancio ban tam paciam IP
-        connection.query('SELECT * FROM ipBans WHERE IP = ?', ip, function (err, rows, fields) {
+        connection.query('SELECT * FROM ipBans WHERE IP = ?', ip, function(err, rows, fields) {
             if (err) {
                 reject(err);
                 connection.release();
                 return callback(err);
             }
             if (!rows.length) { //nera uzregistruoto bano, dedam bana.
-                connection.query('INSERT INTO ipBans SET ?', { IP: ip, UNBAN_TIME: UnixTime() + timeInSeconds }, function (err, rows, fields) {
+                connection.query('INSERT INTO ipBans SET ?', { IP: ip, UNBAN_TIME: UnixTime() + timeInSeconds }, function(err, rows, fields) {
                     if (err) {
                         connection.release();
                         return callback(err);
                     }
                 });
             } else { //banas yra, todel tik updatinam laika.
-                connection.query('UPDATE ipBans SET ? WHERE ID = ?', [{ UNBAN_TIME: UnixTime() + timeInSeconds }, rows[0].ID], function (err, rows, fields) {
+                connection.query('UPDATE ipBans SET ? WHERE ID = ?', [{ UNBAN_TIME: UnixTime() + timeInSeconds }, rows[0].ID], function(err, rows, fields) {
                     if (err) {
                         connection.release();
                         return callback(err);
@@ -1585,11 +1727,11 @@ function BanIP(ip, timeInSeconds, callback) {
 }
 
 function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
-        connectionpool.getConnection(function (err, connection) {
-            async.waterfall([function (done) { //paziurim ar workeris laisvas
-                connection.query('SELECT * FROM ipbans WHERE IP = ?', ip, function (err, rows, fields) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
+        connectionpool.getConnection(function(err, connection) {
+            async.waterfall([function(done) { //paziurim ar workeris laisvas
+                connection.query('SELECT * FROM ipbans WHERE IP = ?', ip, function(err, rows, fields) {
                     if (err) {
                         reject(err);
                         connection.release();
@@ -1602,7 +1744,7 @@ function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
                         if (rows[0].UNBAN_TIME <= UnixTime()) { //banas yra, bet galiojimas baigesi = praleidziam ir istrinam bana.
                             resolve({ banned: false });
 
-                            connection.query('DELETE FROM ipbans WHERE ID = ?', rows[0].ID, function (err, rows, fields) {
+                            connection.query('DELETE FROM ipbans WHERE ID = ?', rows[0].ID, function(err, rows, fields) {
                                 if (err) {
                                     return callback(err);
                                 }
@@ -1614,7 +1756,7 @@ function CheckForIPBan(ip, callback) { //patikrinimas, ar IP neturi gaves bano
 
                     done(null);
                 });
-            }], function (err) {
+            }], function(err) {
                 if (err) return next(err);
             });
             connection.release();
@@ -1633,18 +1775,18 @@ function findValue(o, value) {
 }
 
 function getInfoAndVerifyTile(ID, transport, username, callback) {
-    callback = callback || function () { };
-    return new Promise(function (resolve, reject) {
+    callback = callback || function() {};
+    return new Promise(function(resolve, reject) {
         var speed;
         var count;
-        connectionpool_tiles.getConnection(function (err, connectionT) {
-            connectionT.query('SELECT * FROM ?? WHERE NAME = ? AND ID = ?', [username, transport, ID], function (err, rowse, fields) {
+        connectionpool_tiles.getConnection(function(err, connectionT) {
+            connectionT.query('SELECT * FROM ?? WHERE NAME = ? AND ID = ?', [username, transport, ID], function(err, rowse, fields) {
                 if (err) throw err;
                 if (!rowse) {
                     resolve({ tile: rowse }); //grazinam, net jei ir tuscia
                 } else {
-                    connectionpool.getConnection(function (err, connection) {
-                        connection.query('SELECT * FROM buildings WHERE NAME = ?', [transport], function (err, rows, fields) {
+                    connectionpool.getConnection(function(err, connection) {
+                        connection.query('SELECT * FROM buildings WHERE NAME = ?', [transport], function(err, rows, fields) {
                             if (err) throw err;
                             if (!rows) {
                                 reject(false);
@@ -1713,4 +1855,5 @@ module.exports = {
     GetWorkers: GetWorkers,
     GetAvailableWorkers: GetAvailableWorkers,
     UpdateLastloggedIn: UpdateLastloggedIn,
+    HandleAssignWorkerToTile: HandleAssignWorkerToTile
 };

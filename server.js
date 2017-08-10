@@ -13,16 +13,15 @@ var io = require('socket.io');
 // returns an instance of node-greenlock with additional helper methods
 var lex = require('greenlock-express').create({
     server: 'https://acme-v01.api.letsencrypt.org/directory',
- challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) },
- store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' }),
- approveDomains: approveDomains
+    challenges: { 'tls-sni-01': require('le-challenge-sni').create({ webrootPath: '~/tmp/acme-challenges' }) },
+    store: require('le-store-certbot').create({ webrootPath: '~/tmp/acme-challenges' }),
+    approveDomains: approveDomains
 });
 
 function approveDomains(opts, certs, cb) {
     if (certs) {
         opts.domains = ['www.scharkee.gq', 'scharkee.gq', 'padan.ga', 'www.padan.ga', 'www.gamtosau.ga', 'gamtosau.ga'];
-    }
-    else {
+    } else {
         opts.email = 'matas2k@gmail.com';
         opts.agreeTos = true;
     }
@@ -44,13 +43,13 @@ app.engine('vue', expressVue);
 app.set('view engine', 'vue');
 
 // handles acme-challenge and redirects to https
-require('http').createServer(lex.middleware(require('redirect-https')())).listen(80, function () {
+require('http').createServer(lex.middleware(require('redirect-https')())).listen(80, function() {
     console.log("============ Up and running =============");
     console.log("HTTP redirector: ", this.address());
 });
 
 // handles your app
-var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(443, function () {
+var server = require('https').createServer(lex.httpsOptions, lex.middleware(app)).listen(443, function() {
     console.log("HTTPS: ", this.address());
 });
 
@@ -64,25 +63,25 @@ var bcrypt = require('bcrypt');
 var clientCount = [];
 var currentConnections = {};
 
-io.on("connection", function (socket) {
+io.on("connection", function(socket) {
     //TODO: broken, nes nebeiseina gaut IP.
     var tempIP = 12;
 
     //registruojamas socket + user IP
-    currentConnections[socket.id] = { socket: socket, IP: socket.conn.transport.socket._socket.remoteAddress };  //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
+    currentConnections[socket.id] = { socket: socket, IP: socket.conn.transport.socket._socket.remoteAddress }; //kind of a double registration. Mb bad. Kepps up the count though, which is nice.
     clientCount.push(socket);
 
     console.log("Connection Up, client ID: " + clientCount.indexOf(socket) + ", Connection IP: " + socket.conn.transport.socket._socket.remoteAddress);
     socket.emit("connectedToNode", { ConnectedOnceNoDupeStatRequests: true });
 
-    socket.on("CHECK_LOGIN", function (data) {
+    socket.on("CHECK_LOGIN", function(data) {
         var username = data.Uname;
 
-        db.CheckForIPBan(socket.conn.transport.socket._socket.remoteAddress).then(function (banResult) {
+        db.CheckForIPBan(socket.conn.transport.socket._socket.remoteAddress).then(function(banResult) {
             if (banResult.banned) { //useris turi bana, netikrinam logino. TODO: paflashint kad dar banned.
                 socket.emit("PASS_CHECK_CALLBACK", { passStatus: 4 });
             } else { //bano nera, viskas tvarkoj vaziuojam toliau
-                db.ParseLogin(data).then(function (data) {
+                db.ParseLogin(data).then(function(data) {
                     var status = data.status;
 
                     if (status == 1) { //useris patvirtintas
@@ -97,26 +96,26 @@ io.on("connection", function (socket) {
                             socket.emit("PASS_CHECK_CALLBACK", { passStatus: status });
                         }
                     }
-                }).catch(function () {
+                }).catch(function() {
                     console.error("error caught @ login check");
                 });
             }
-        }).catch(function () {
+        }).catch(function() {
             console.error("error caught @ ban check");
         });
     });
 
-    socket.on("REGISTER_USER", function (data) {
+    socket.on("REGISTER_USER", function(data) {
         db.RegisterUser(data);
     });
 
     //GAME STAT RETRIEVAL CALLS
 
-    socket.on("GET_STATS", function (data) {
+    socket.on("GET_STATS", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetStats(data).then(function (data) {
+            db.GetStats(data).then(function(data) {
                 socket.emit("RETRIEVE_STATS", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ get stats");
             });
         } else {
@@ -126,11 +125,11 @@ io.on("connection", function (socket) {
 
     //make function that manually pings for response, if response arrives, push lastloggedin to server \/
 
-    socket.on("GET_TILE_DATA", function (data) {//tile information function
+    socket.on("GET_TILE_DATA", function(data) { //tile information function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetTileData(data).then(function (data) {
+            db.GetTileData(data).then(function(data) {
                 socket.emit("RECEIVE_TILES", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tiledata");
             });
         } else {
@@ -138,17 +137,17 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("GET_TILE_INFORMATION", function (data) {//tile information function
+    socket.on("GET_TILE_INFORMATION", function(data) { //tile information function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetTiles(data).then(function (data) {
+            db.GetTiles(data).then(function(data) {
                 socket.emit("RECEIVE_TILE_INFORMATION", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tile info");
             });
 
-            db.GetInventory(data).then(function (data) {
+            db.GetInventory(data).then(function(data) {
                 socket.emit("RECEIVE_INVENTORY", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ inventory info");
             });
         } else {
@@ -156,11 +155,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("FORGOT_PASS", function (data) {//tile purchase function
+    socket.on("FORGOT_PASS", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.ForgotPass(data).then(function (data) {
+            db.ForgotPass(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ password reset");
             });
         } else {
@@ -168,11 +167,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("BUY_TILE", function (data) {//tile purchase function
+    socket.on("BUY_TILE", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleTilePurchase(data).then(function (data) {
+            db.HandleTilePurchase(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tile buy");
             });
         } else {
@@ -180,11 +179,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("SELL_TILE", function (data) {//tile purchase function
+    socket.on("SELL_TILE", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleTileSale(data).then(function (data) {
+            db.HandleTileSale(data).then(function(data) {
                 socket.emit("ADD_FUNDS", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tile sale");
             });
         } else {
@@ -192,11 +191,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("TILE_ASSIGN_WORK", function (data) {//tile purchase function
+    socket.on("TILE_ASSIGN_WORK", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleTileAssignWork(data).then(function (data) {
+            db.HandleTileAssignWork(data).then(function(data) {
                 socket.emit("ASSIGN_TILE_WORK", data);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tile work assignment");
             });
         } else {
@@ -204,11 +203,23 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("VERIFY_SOLD_PRODUCE", function (data) {//tile purchase function
+    socket.on("TILE_ASSIGN_WORKER", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleProduceSale(data).then(function (data) {
+            db.HandleAssignWorkerToTile(data).then(function(data) {
+                socket.emit("WORKER_ASSIGNED_TO_TILE", data);
+            }).catch(function() {
+                console.error("error caught @ tile worker assignment");
+            });
+        } else {
+            socket.emit("DISCREPANCY", { reason: 1, reasonString: "Desynchronization detected. Please log in again." }); //DISCREPANCY CALL FOR THE CLIENT TO SHUT OFF.
+        }
+    });
+
+    socket.on("VERIFY_SOLD_PRODUCE", function(data) { //tile purchase function
+        if (VerifyUser(data.Uname, socket.id)) {
+            db.HandleProduceSale(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function (err) {
+            }).catch(function(err) {
                 console.error(err);
             });
         } else {
@@ -216,11 +227,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("VERIFY_SOLD_PRODUCE_STORE", function (data) {//tile purchase function
+    socket.on("VERIFY_SOLD_PRODUCE_STORE", function(data) { //tile purchase function
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleProduceSaleJobAssignment(data).then(function (data) {
+            db.HandleProduceSaleJobAssignment(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function (err) {
+            }).catch(function(err) {
                 console.error(err);
             });
         } else {
@@ -230,7 +241,7 @@ io.on("connection", function (socket) {
 
     //FIXME: this shit here returns scientific number and not the real int.
 
-    socket.on("GET_UNIX", function (data) {
+    socket.on("GET_UNIX", function(data) {
         var unixBuffer = UnixTime(); //temp probably
 
         var unixJson = { unixBuffer: unixBuffer.toString() };
@@ -238,15 +249,15 @@ io.on("connection", function (socket) {
         socket.emit("RECEIVE_UNIX", unixJson);
     });
 
-    socket.on("DISCONNECT", function (data) {
+    socket.on("DISCONNECT", function(data) {
         socket.disconnect();
     });
 
-    socket.on("VERIFY_COLLECT_TILE", function (data) {
+    socket.on("VERIFY_COLLECT_TILE", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandleTileCollect(data).then(function (data) {
+            db.HandleTileCollect(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ tile collection");
             });
         } else {
@@ -254,11 +265,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("GET_TRANSPORT_QUEUES", function (data) {
+    socket.on("GET_TRANSPORT_QUEUES", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetTransportQueues(data).then(function (data) {
+            db.GetTransportQueues(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ transport queues");
             });
         } else {
@@ -266,11 +277,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("GET_WORKERS", function (data) {
+    socket.on("GET_WORKERS", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetWorkers(data).then(function (data) {
+            db.GetWorkers(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ worker getter");
             });
         } else {
@@ -278,11 +289,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("GET_AVAILABLE_WORKERS", function (data) {
+    socket.on("GET_AVAILABLE_WORKERS", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.GetAvailableWorkers(data).then(function (data) {
+            db.GetAvailableWorkers(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function (err) {
+            }).catch(function(err) {
                 console.error("error caught @ available worker getter :" + err);
             });
         } else {
@@ -290,11 +301,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("VERIFY_COLLECT_PRESS_WORK", function (data) {
+    socket.on("VERIFY_COLLECT_PRESS_WORK", function(data) {
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandlePressWorkCollection(data).then(function (data) {
+            db.HandlePressWorkCollection(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ press work collection");
             });
         } else {
@@ -302,11 +313,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("VERIFY_EXPAND_PLOTSIZE", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+    socket.on("VERIFY_EXPAND_PLOTSIZE", function(data) { //data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandlePlotsizeExpansion(data).then(function (data) {
+            db.HandlePlotsizeExpansion(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ plotsize expansion");
             });
         } else {
@@ -314,11 +325,11 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("GET_PRICES", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+    socket.on("GET_PRICES", function(data) { //data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
         if (VerifyUser(data.Uname, socket.id)) {
-            db.HandlePriceRetrieval(data).then(function (data) {
+            db.HandlePriceRetrieval(data).then(function(data) {
                 socket.emit(data.call, data.content);
-            }).catch(function () {
+            }).catch(function() {
                 console.error("error caught @ price retrieval");
             });
         } else {
@@ -326,15 +337,15 @@ io.on("connection", function (socket) {
         }
     });
 
-    socket.on("SUBMIT_BUGREPORT", function (data) {//data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
-        db.HandleBugReportSubmission(data).then(function (data) {
+    socket.on("SUBMIT_BUGREPORT", function(data) { //data doesnt contain enything. If enough money in DB, expand plotsize by 1. Prices of expansion go up very quickly too.
+        db.HandleBugReportSubmission(data).then(function(data) {
             socket.emit(data.call, data.content);
-        }).catch(function () {
+        }).catch(function() {
             console.error("error caught @ price retrieval");
         });
     });
 
-    socket.on("VERIFY_ACTION", function (data) {// misc action verifyinimo funkcija.
+    socket.on("VERIFY_ACTION", function(data) { // misc action verifyinimo funkcija.
         //every misc action goes here by switch/case(fertilising, bleh bleh.)
     });
 
@@ -353,18 +364,18 @@ io.on("connection", function (socket) {
     //TODO: effects for upgrading and buying towers + collecting stuff
 
     //on client disconnected
-    socket.on("disconnect", function (data) {
+    socket.on("disconnect", function(data) {
         if (currentConnections[socket.id].username == null) {
-            clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
+            clientCount.splice(clientCount.indexOf(socket), 1); // reiketu consolidatint is dvieju lists into one
         } else {
             console.log("user  " + currentConnections[socket.id].username + " dc'd");
-            clientCount.splice(clientCount.indexOf(socket), 1);  // reiketu consolidatint is dvieju lists into one
+            clientCount.splice(clientCount.indexOf(socket), 1); // reiketu consolidatint is dvieju lists into one
             db.UpdateLastloggedIn(currentConnections[socket.id].username);
 
             delete currentConnections[socket.id];
         }
     });
-});//iserts default stats into DB when user first starts the game,
+}); //iserts default stats into DB when user first starts the game,
 
 // check if enough isnt working FINDAWAY (escapes from callback hell)
 
@@ -374,7 +385,7 @@ function UnixTime() {
 }
 
 function VerifyUser(username, socketID) { //kvieciama per kiekviena client to server call
-    if (currentConnections[socketID].username == null) {//nera net assigninto username, probably cheating/injecting. Ban 5 min (socketas neatlikes login/auth)
+    if (currentConnections[socketID].username == null) { //nera net assigninto username, probably cheating/injecting. Ban 5 min (socketas neatlikes login/auth)
         return false;
     }
     if (currentConnections[socketID].username != username) { //client kreipiasi i serveri kitu username. (Definetely) injecting. Ban 15 min
@@ -385,8 +396,7 @@ function VerifyUser(username, socketID) { //kvieciama per kiekviena client to se
 }
 
 function BanIP(ip, timeInSeconds) {
-    db.BanIP(ip, timeInSeconds).then(function (data) {
-    }).catch(function () {
+    db.BanIP(ip, timeInSeconds).then(function(data) {}).catch(function() {
         console.error("error caught @ banning");
     });
 }
@@ -425,7 +435,7 @@ function findValue(o, value) {
 function checkForDuplicateUser(username) {
     var status = false; //no dupe
 
-    Object.keys(currentConnections).forEach(function (key, index) {
+    Object.keys(currentConnections).forEach(function(key, index) {
         if (currentConnections[key].username == username) {
             status = true;
         }
@@ -447,7 +457,7 @@ function findPrice(rows, name) {
     return price;
 }
 
-Array.prototype.contains = function (element) {
+Array.prototype.contains = function(element) {
     return this.indexOf(element) > -1;
 };
 
